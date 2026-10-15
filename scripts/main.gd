@@ -38,15 +38,29 @@ var placed_today := false
 var show_fc := true
 var msg := "Welcome. Place a tile card, build, then End Day (Space)."
 var fc: Array = []
-var ui: CanvasLayer
-var panel_nodes: Array = []
 var font: Font
+var ko := OS.get_locale_language() == "ko"
+var show_help := true
+
+
+func T(en: String, kr: String) -> String:
+	return kr if ko else en
+
+
+func _style(c: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = c
+	sb.set_corner_radius_all(2)
+	sb.content_margin_left = 3; sb.content_margin_right = 3
+	sb.content_margin_top = 0; sb.content_margin_bottom = 0
+	return sb
 
 
 func _ready() -> void:
-	font = ThemeDB.fallback_font
-	ui = CanvasLayer.new()
-	add_child(ui)
+	var sf := SystemFont.new()
+	sf.font_names = PackedStringArray(["Malgun Gothic", "Noto Sans CJK KR", "Apple SD Gothic Neo", "NanumGothic", "sans-serif"])
+	sf.fallbacks = [ThemeDB.fallback_font]
+	font = sf
 	_new_game()
 
 
@@ -89,75 +103,57 @@ func pick(mp: Vector2) -> int:
 	return best
 
 
-# ---------------- UI ----------------
+# ---------------- UI (self-drawn buttons: identical look on every Godot version) ----------------
+var btns: Array = []     # {r: Rect2, t: String, cb: Callable, on: bool, act: bool}
+var texts: Array = []    # {p: Vector2, w: float, t: String, c: Color, fs: int}
+var hover_btn := -1
+
+
 func _build_ui() -> void:
-	for n in panel_nodes: n.queue_free()
-	panel_nodes.clear()
+	btns.clear(); texts.clear()
 	var x := 392.0
 	var y := 4.0
-	var lbl := Label.new()
-	lbl.position = Vector2(x, y)
-	lbl.add_theme_font_size_override("font_size", 8)
 	var resist_txt := ""
 	for c in GS.CLASSES:
 		if g.resist[c] > 0: resist_txt += " RESIST-%s(%d)" % [c, g.resist[c]]
-	lbl.text = "Day %d/%d  Rifts %d  Sealed %d\nM %d  L %d  Folk %d  LP %d%s\nLit %d  Ember~%d" % [g.day, g.days, g.rift.size(), g.sealed, g.M, g.L, g.folk, g.lp, resist_txt, g.lit_count(), int(g.ember())]
-	ui.add_child(lbl); panel_nodes.append(lbl)
+	_text(Vector2(x, y + 8), 240, "Day %d/%d   Rifts %d   Sealed %d\nM %d   L %d   Folk %d   LP %d%s\nLit %d   Ember~%d" % [g.day, g.days, g.rift.size(), g.sealed, g.M, g.L, g.folk, g.lp, resist_txt, g.lit_count(), int(g.ember())], Color(1, 1, 1), 9)
 	y += 40
+	_text(Vector2(x, y + 8), 240, _hint(), Color(1, 0.9, 0.4), 9)
+	y += 30
 	if not g.over:
 		for k in range(g.cards.size()):
-			var b := _btn("Card %d: %s%s" % [k + 1, g.cards[k], " (placed)" if placed_today else ""], Vector2(x, y), Vector2(116, 14))
-			b.disabled = placed_today
-			b.pressed.connect(_on_card.bind(k))
+			_btn(T("Card %d: %s", "카드 %d: %s") % [k + 1, g.cards[k]] + (T("  (used)", "  (사용됨)") if placed_today else ""), Vector2(x, y), Vector2(236, 13), _on_card.bind(k), not placed_today, mode == "card" and card_idx == k)
 			y += 15
 		y += 3
 		var col := 0
 		for n in GS.BUILD_ORDER:
 			var c: Array = GS.STRUCT[n]
-			var bx := x + col * 120.0
-			var b2 := _btn("%s %dM%dL" % [n, c[0], c[1]], Vector2(bx, y), Vector2(116, 14))
-			b2.pressed.connect(_on_build.bind(n))
+			_btn("%s %dM %dL" % [n, c[0], c[1]], Vector2(x + col * 120.0, y), Vector2(116, 13), _on_build.bind(n), g.M >= c[0] and g.L >= c[1] and g.lp >= c[2], mode == "build" and build_name == n)
 			col += 1
 			if col == 2:
 				col = 0; y += 15
 		if col == 1: y += 15
 		y += 3
-		var ab_y := y
-		var bb := _btn("Burst (3L 2LP)", Vector2(x, ab_y), Vector2(116, 14))
-		bb.disabled = selected < 0 or not g.can_burst(selected)
-		bb.pressed.connect(_on_burst)
-		var pb := _btn("Pyre fire (3L 1LP)", Vector2(x + 120, ab_y), Vector2(116, 14))
-		pb.disabled = selected < 0 or not g.can_pyre(selected)
-		pb.pressed.connect(_on_pyre)
+		_btn("Burst (3L 2LP)", Vector2(x, y), Vector2(116, 13), _on_burst, selected >= 0 and g.can_burst(selected), false)
+		_btn("Pyre fire (3L 1LP)", Vector2(x + 120, y), Vector2(116, 13), _on_pyre, selected >= 0 and g.can_pyre(selected), false)
 		y += 15
-		var sb := _btn("Seal Rift (5L 2LP)", Vector2(x, y), Vector2(116, 14))
-		sb.disabled = selected < 0 or g.seal_targets(selected).is_empty()
-		sb.pressed.connect(_on_seal)
-		var fb := _btn("Forecast: %s (F)" % ("ON" if show_fc else "off"), Vector2(x + 120, y), Vector2(116, 14))
-		fb.pressed.connect(_toggle_fc)
+		_btn("Seal Rift (5L 2LP)", Vector2(x, y), Vector2(116, 13), _on_seal, selected >= 0 and not g.seal_targets(selected).is_empty(), false)
+		_btn("Forecast: %s (F)" % ("ON" if show_fc else "off"), Vector2(x + 120, y), Vector2(116, 13), _toggle_fc, true, show_fc)
 		y += 18
-	var eb := _btn("END DAY (Space)" if not g.over else "NEW GAME (R)", Vector2(x, y), Vector2(236, 18))
-	eb.pressed.connect(_end_day if not g.over else _new_game)
-	y += 22
-	var vb := _btn("Variants: %s  (keys 1-6)" % VNAMES[vset_idx], Vector2(x, y), Vector2(236, 14))
-	vb.pressed.connect(_next_vset)
+	_btn(T("END DAY (Space)", "하루 끝내기 (Space)") if not g.over else T("NEW GAME (R)", "새 게임 (R)"), Vector2(x, y), Vector2(236, 17), _end_day if not g.over else _new_game, true, false)
+	y += 21
+	_btn(T("Variant: %s (1-6)", "오염: %s (1-6)") % VNAMES[vset_idx], Vector2(x, y), Vector2(116, 13), _next_vset, true, false)
+	_btn(T("HELP (H)", "도움말 (H)"), Vector2(x + 120, y), Vector2(116, 13), _toggle_help, true, show_help)
 	y += 18
-	var ml := Label.new()
-	ml.position = Vector2(x, y)
-	ml.size = Vector2(240, 80)
-	ml.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	ml.add_theme_font_size_override("font_size", 8)
-	ml.text = _info_text()
-	ui.add_child(ml); panel_nodes.append(ml)
+	_text(Vector2(x, y + 8), 240, _info_text(), Color(0.85, 0.85, 0.9), 8)
 
 
-func _btn(t: String, p: Vector2, s: Vector2) -> Button:
-	var b := Button.new()
-	b.text = t; b.position = p; b.size = s
-	b.add_theme_font_size_override("font_size", 8)
-	b.focus_mode = Control.FOCUS_NONE
-	ui.add_child(b); panel_nodes.append(b)
-	return b
+func _btn(t: String, p: Vector2, sz: Vector2, cb: Callable, on: bool, act: bool) -> void:
+	btns.append({"r": Rect2(p, sz), "t": t, "cb": cb, "on": on, "act": act})
+
+
+func _text(p: Vector2, w: float, t: String, c: Color, fs: int) -> void:
+	texts.append({"p": p, "w": w, "t": t, "c": c, "fs": fs})
 
 
 func _info_text() -> String:
@@ -170,6 +166,27 @@ func _info_text() -> String:
 	if g.over:
 		t += "\n\n%s  Ember %d" % ["VICTORY" if g.won else "DEFEAT", int(g.ember())]
 	return t
+
+
+func _draw_ui() -> void:
+	for tx in texts:
+		draw_multiline_string(font, tx["p"], tx["t"], HORIZONTAL_ALIGNMENT_LEFT, tx["w"], tx["fs"], -1, tx["c"])
+	for i in range(btns.size()):
+		var b: Dictionary = btns[i]
+		var r: Rect2 = b["r"]
+		var bg := Color(0.20, 0.24, 0.34)
+		if not b["on"]: bg = Color(0.11, 0.12, 0.16)
+		elif b["act"]: bg = Color(0.50, 0.45, 0.15)
+		elif i == hover_btn: bg = Color(0.32, 0.38, 0.55)
+		draw_rect(r, bg)
+		draw_rect(r, Color(0.5, 0.55, 0.7) if b["on"] else Color(0.25, 0.26, 0.32), false, 1.0)
+		draw_string(font, r.position + Vector2(4, r.size.y - 3), b["t"], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 8, Color(1, 1, 1) if b["on"] else Color(0.45, 0.45, 0.5))
+
+
+func _btn_at(p: Vector2) -> int:
+	for i in range(btns.size()):
+		if btns[i]["r"].has_point(p): return i
+	return -1
 
 
 # ---------------- actions ----------------
@@ -198,6 +215,23 @@ func _on_seal() -> void:
 	g.seal(selected, t[0]); msg = "Rift sealed!"; _refresh()
 
 
+func _toggle_help() -> void:
+	show_help = not show_help
+	queue_redraw()
+
+
+func _hint() -> String:
+	if g.over:
+		return T("Stage over. Press R for a new game.", "끝났습니다. R 키로 새 게임.")
+	if not placed_today:
+		return T("1) Click a Card button, then a YELLOW-outlined hex to expand your land.", "1) Card 버튼을 누르고 노란 테두리 칸을 클릭해 영토를 넓히세요.")
+	if mode == "build":
+		return T("Click a lit hex (not purple) to build. Esc cancels.", "밝은 내 칸(보라색 아님)을 클릭해 짓기. Esc로 취소.")
+	if g.lp > 0 and g.M >= 2:
+		return T("2) Click a build button (try lantern), then a lit hex near the purple. Then press Space.", "2) 건설 버튼(예: lantern) 후 보라색이 다가오는 쪽 내 칸 클릭. 끝나면 Space.")
+	return T("3) Press Space to end the day.", "3) Space를 눌러 하루를 끝내세요.")
+
+
 func _toggle_fc() -> void:
 	show_fc = not show_fc; _refresh()
 
@@ -222,9 +256,16 @@ func _end_day() -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventMouseMotion:
 		var h := pick(e.position)
-		if h != hover:
-			hover = h; _build_ui(); queue_redraw()
+		var hb := _btn_at(e.position)
+		if h != hover or hb != hover_btn:
+			hover = h; hover_btn = hb; _build_ui(); queue_redraw()
 	elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+		if show_help:
+			show_help = false; queue_redraw(); return
+		var bi := _btn_at(e.position)
+		if bi >= 0:
+			if btns[bi]["on"]: btns[bi]["cb"].call()
+			return
 		var i := pick(e.position)
 		if i < 0 or g.over: return
 		if mode == "card" and card_idx >= 0 and not placed_today:
@@ -245,6 +286,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		match e.keycode:
 			KEY_SPACE: _end_day()
 			KEY_F: _toggle_fc()
+			KEY_H: _toggle_help()
 			KEY_R: _new_game()
 			KEY_ESCAPE: mode = ""; card_idx = -1; build_name = ""; selected = -1; _refresh()
 			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
@@ -291,6 +333,30 @@ func _draw() -> void:
 			draw_polyline(hex_pts(p, SIZE - 1.0) + PackedVector2Array([hex_pts(p, SIZE - 1.0)[0]]), Color(1, 1, 1), 2.0)
 		elif i == hover:
 			draw_polyline(hex_pts(p, SIZE - 1.0) + PackedVector2Array([hex_pts(p, SIZE - 1.0)[0]]), Color(0.8, 0.8, 0.8), 1.0)
+	_draw_ui()
+	if show_help:
+		var lines: Array = [
+			T("HOW TO PLAY (click anywhere to close, H to reopen)", "플레이 방법 (아무 곳이나 클릭하면 닫힘, H로 다시 열기)"),
+			"",
+			T("GOAL: keep the center hex H alive for 12 days.", "목표: 12일 동안 가운데 H(베이스)를 지키기."),
+			T("Purple = blight. It spreads every night from the red Rifts.", "보라색 = 오염. 밤마다 빨간 테두리 Rift에서 번집니다."),
+			T("A number on a hex = blight strength (1-3). ^1 = gets worse tonight.", "칸의 숫자 = 오염 강도(1~3). ^1 = 오늘 밤 악화 예고."),
+			T("G2 = defense of that hex. Blight spreads where pressure > defense.", "G2 = 그 칸의 방어력. 오염 압력이 방어력보다 크면 번집니다."),
+			"",
+			T("EACH DAY:", "하루 순서:"),
+			T("1) Card button -> click a yellow-outlined hex: expand your land (once a day).", "1) Card 버튼 -> 노란 테두리 칸 클릭: 영토 확장 (하루 1번)"),
+			T("2) Build button -> click a lit hex: build. Lantern/Brazier give light (defense),", "2) 건설 버튼 -> 내 칸 클릭: 건설. Lantern/Brazier=빛(방어),"),
+			T("   Palisade/Rampart give walls. Put them where purple is coming.", "   Palisade/Rampart=방벽. 보라색이 다가오는 쪽에 지으세요."),
+			T("3) Press Space: night falls, blight spreads, next day.", "3) Space: 밤이 되어 오염이 번지고 다음 날로."),
+			"",
+			T("TIPS: Brazier burns Rime/Spore.", "팁: Brazier는 Rime/Spore 오염을 태웁니다."),
+			T("Beacon (Bc): select it, then press Burst to cleanse nearby blight.", "Beacon(Bc): 선택 후 Burst 버튼으로 주변 오염 정화."),
+		]
+		draw_rect(Rect2(10, 40, 380, 280), Color(0.02, 0.02, 0.05, 0.93))
+		var yy := 58.0
+		for ln in lines:
+			draw_string(font, Vector2(20, yy), ln, HORIZONTAL_ALIGNMENT_LEFT, 360, 9, Color(1, 0.95, 0.7) if yy < 60 else Color(0.92, 0.92, 0.95))
+			yy += 14.5
 	if g.over:
 		draw_rect(Rect2(60, 150, 300, 40), Color(0, 0, 0, 0.75))
 		draw_string(font, Vector2(70, 177), "%s - press R" % ("VICTORY" if g.won else "DEFEAT"), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1, 0.9, 0.4))

@@ -33,6 +33,9 @@ func _process(_d: float) -> bool:
 	step += 1
 	if step == 2:
 		var g = m.g
+		_check(m.show_help, "help overlay is shown at start")
+		_click(0)
+		_check(not m.show_help, "first click closes help")
 		var lit0: int = g.lit_count()
 		m._on_card(0)
 		var fr: Array = g.frontier()

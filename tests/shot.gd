@@ -13,6 +13,10 @@ func _init() -> void:
 func _process(_d: float) -> bool:
 	frames += 1
 	if frames == 5:
+		_save("help")
+		m.show_help = false
+		m._refresh()
+	if frames == 6:
 		_save("day1")
 		# play a few scripted days with the real UI methods
 		var g = m.g
