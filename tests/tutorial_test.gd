@@ -33,6 +33,17 @@ func _process(_d: float) -> bool:
 	var pr: Array = m.fc[2]; var gd: Array = m.fc[3]
 	_check(pr[m.tut_a] > gd[m.tut_a] and pr[m.tut_b] > gd[m.tut_b], "both threatened hexes show danger (pressure > defense)")
 	_check(_id() == "intro", "starts at intro")
+	var next_found := false
+	for b in m.btns:
+		if String(b["t"]).find(">") >= 0 and b["on"]:
+			next_found = true
+			var ctr: Vector2 = (b["r"] as Rect2).get_center()
+			_check(m._btn_at(ctr) >= 0, "NEXT button is clickable at its center")
+	_check(next_found, "NEXT button exists on info steps")
+	var kev := InputEventKey.new(); kev.keycode = KEY_SPACE; kev.pressed = true
+	m._unhandled_input(kev)
+	_check(_id() == "blight", "Space advances info steps")
+	m._tut_next(); m._tut_next(); m.tut = 0; m._refresh()
 	m._on_build("lantern")
 	_check(_id() == "intro", "actions are blocked during info steps")
 	m._tut_next(); m._tut_next(); m._tut_next()
