@@ -101,3 +101,11 @@ for each tile t in order:
 apply variant extras (rime line jump, spore seeds, rust hp, hollow sink)
 move heralds; apply omen; collapse(intensity==3 && was3_last_dusk) -> Scar
 ```
+
+## 13. 알려진 설계 취약점 (프로토타입에서 가장 먼저 검증)
+1. **Lantern 스팸 지배 가능성**: Lantern은 자기 Light 2 / 인접 1. 오염 압력이 인접 칸 강도 합계이므로, 단일 이웃(강도 1)의 압력 1은 Guard 1을 못 넘는다 → 값싼 Lantern 격자만으로 초반 확산이 거의 막힐 수 있다.
+   대응 후보: 압력 공식 상향(강도²), Lantern Light 인접 0.5 단계화, Rift 방출량 시간 증가, 변종별 Light 효율 차(Hollow/Rime에서 빛 약화), 적응 시스템 임계값 하향. 봇 하네스로 "Lantern만" 정책 클리어율이 50%를 넘으면 규칙 수정.
+2. **구조물 HP 기본값 미정**: Rust 규칙상 모든 구조물에 HP가 필요 → 기본 3 [미정].
+3. **"한 칸 한 구조물" 긴장의 크기**: 영토가 19~25칸일 때 방어 칸 비율이 적절한지(30~45% 목표) 측정 필요.
+4. **예고 결정론으로 인한 풀린 퍼즐**: 낮 동안 완벽한 계산이 가능 → 카드/오멘/씨앗 무작위와 적응으로 충분한지 플레이테스트로 확인.
+5. 이 문서의 수치는 아직 한 번도 시뮬레이션되지 않았다. 신뢰하지 말 것.
