@@ -1,0 +1,422 @@
+{
+ "R1 max,wild2|B|murk|random": {
+  "n": 80,
+  "win": 0.4875,
+  "lit": 4.275,
+  "defense": 2.7375,
+  "blight": 45.175
+ },
+ "R1 max,wild2|B|murk|lantern_only": {
+  "n": 80,
+  "win": 0.125,
+  "lit": 1.15,
+  "defense": 0.0125,
+  "blight": 44.625
+ },
+ "R1 max,wild2|B|murk|wall_only": {
+  "n": 80,
+  "win": 0.8875,
+  "lit": 9.3,
+  "defense": 5.85,
+  "blight": 45.0625
+ },
+ "R1 max,wild2|B|murk|flame_only": {
+  "n": 80,
+  "win": 0.6375,
+  "lit": 5.7375,
+  "defense": 2.6625,
+  "blight": 45.825
+ },
+ "R1 max,wild2|B|murk|mixed": {
+  "n": 30,
+  "win": 0.6666666666666666,
+  "lit": 6.366666666666666,
+  "defense": 3.4,
+  "blight": 45.86666666666667
+ },
+ "R1 max,wild2|B|murk+spore|random": {
+  "n": 80,
+  "win": 0.225,
+  "lit": 3.425,
+  "defense": 2.075,
+  "blight": 45.975
+ },
+ "R1 max,wild2|B|murk+spore|lantern_only": {
+  "n": 80,
+  "win": 0.0625,
+  "lit": 1.2625,
+  "defense": 0.0875,
+  "blight": 45.7125
+ },
+ "R1 max,wild2|B|murk+spore|wall_only": {
+  "n": 80,
+  "win": 0.425,
+  "lit": 5.4,
+  "defense": 3.4875,
+  "blight": 46.4
+ },
+ "R1 max,wild2|B|murk+spore|flame_only": {
+  "n": 80,
+  "win": 0.7375,
+  "lit": 9.525,
+  "defense": 5.6625,
+  "blight": 42.575
+ },
+ "R1 max,wild2|B|murk+spore|mixed": {
+  "n": 30,
+  "win": 0.8,
+  "lit": 9.333333333333334,
+  "defense": 4.9,
+  "blight": 44.666666666666664
+ },
+ "R1 max,wild2|B|rime+spore|random": {
+  "n": 80,
+  "win": 0.275,
+  "lit": 3.975,
+  "defense": 2.6125,
+  "blight": 46.1
+ },
+ "R1 max,wild2|B|rime+spore|lantern_only": {
+  "n": 80,
+  "win": 0.0375,
+  "lit": 1.0625,
+  "defense": 0.0125,
+  "blight": 46.3125
+ },
+ "R1 max,wild2|B|rime+spore|wall_only": {
+  "n": 80,
+  "win": 0.1125,
+  "lit": 2.925,
+  "defense": 1.775,
+  "blight": 47.575
+ },
+ "R1 max,wild2|B|rime+spore|flame_only": {
+  "n": 80,
+  "win": 1.0,
+  "lit": 17.475,
+  "defense": 11.1625,
+  "blight": 33.725
+ },
+ "R1 max,wild2|B|rime+spore|mixed": {
+  "n": 30,
+  "win": 0.9333333333333333,
+  "lit": 13.366666666666667,
+  "defense": 5.666666666666667,
+  "blight": 41.86666666666667
+ },
+ "R1 max,wild2|B|rust+murk|random": {
+  "n": 80,
+  "win": 0.5375,
+  "lit": 4.7375,
+  "defense": 1.55,
+  "blight": 46.525
+ },
+ "R1 max,wild2|B|rust+murk|lantern_only": {
+  "n": 80,
+  "win": 0.0125,
+  "lit": 1.35,
+  "defense": 0.2,
+  "blight": 44.65
+ },
+ "R1 max,wild2|B|rust+murk|wall_only": {
+  "n": 80,
+  "win": 0.575,
+  "lit": 6.0125,
+  "defense": 3.0,
+  "blight": 46.4
+ },
+ "R1 max,wild2|B|rust+murk|flame_only": {
+  "n": 80,
+  "win": 0.325,
+  "lit": 3.55,
+  "defense": 0.8125,
+  "blight": 45.4875
+ },
+ "R1 max,wild2|B|rust+murk|mixed": {
+  "n": 30,
+  "win": 0.6333333333333333,
+  "lit": 9.033333333333333,
+  "defense": 3.2666666666666666,
+  "blight": 48.266666666666666
+ },
+ "R1 max,wild2|B|rime+hollow|random": {
+  "n": 80,
+  "win": 0.0125,
+  "lit": 2.35,
+  "defense": 1.35,
+  "blight": 47.075
+ },
+ "R1 max,wild2|B|rime+hollow|lantern_only": {
+  "n": 80,
+  "win": 0.0,
+  "lit": 1.025,
+  "defense": 0.0,
+  "blight": 46.875
+ },
+ "R1 max,wild2|B|rime+hollow|wall_only": {
+  "n": 80,
+  "win": 0.0625,
+  "lit": 1.9625,
+  "defense": 0.8625,
+  "blight": 47.3375
+ },
+ "R1 max,wild2|B|rime+hollow|flame_only": {
+  "n": 80,
+  "win": 0.6625,
+  "lit": 9.725,
+  "defense": 5.75,
+  "blight": 44.05
+ },
+ "R1 max,wild2|B|rime+hollow|mixed": {
+  "n": 30,
+  "win": 0.43333333333333335,
+  "lit": 7.166666666666667,
+  "defense": 4.066666666666666,
+  "blight": 45.266666666666666
+ },
+ "R1 max,wild2|B|all5|random": {
+  "n": 80,
+  "win": 0.05,
+  "lit": 2.1,
+  "defense": 1.025,
+  "blight": 47.2625
+ },
+ "R1 max,wild2|B|all5|lantern_only": {
+  "n": 80,
+  "win": 0.0,
+  "lit": 1.125,
+  "defense": 0.025,
+  "blight": 47.1375
+ },
+ "R1 max,wild2|B|all5|wall_only": {
+  "n": 80,
+  "win": 0.075,
+  "lit": 2.15,
+  "defense": 0.9125,
+  "blight": 47.375
+ },
+ "R1 max,wild2|B|all5|flame_only": {
+  "n": 80,
+  "win": 0.5125,
+  "lit": 8.225,
+  "defense": 4.875,
+  "blight": 43.6
+ },
+ "R1 max,wild2|B|all5|mixed": {
+  "n": 30,
+  "win": 0.4,
+  "lit": 7.366666666666666,
+  "defense": 3.8666666666666667,
+  "blight": 44.9
+ },
+ "R2 max,cap2|B|murk|random": {
+  "n": 80,
+  "win": 0.9875,
+  "lit": 6.9,
+  "defense": 5.4875,
+  "blight": 42.425
+ },
+ "R2 max,cap2|B|murk|lantern_only": {
+  "n": 80,
+  "win": 0.625,
+  "lit": 1.4875,
+  "defense": 0.35,
+  "blight": 43.8
+ },
+ "R2 max,cap2|B|murk|wall_only": {
+  "n": 80,
+  "win": 1.0,
+  "lit": 11.4875,
+  "defense": 7.7,
+  "blight": 42.7625
+ },
+ "R2 max,cap2|B|murk|flame_only": {
+  "n": 80,
+  "win": 0.975,
+  "lit": 9.675,
+  "defense": 5.425,
+  "blight": 43.6
+ },
+ "R2 max,cap2|B|murk|mixed": {
+  "n": 30,
+  "win": 1.0,
+  "lit": 10.5,
+  "defense": 5.366666666666666,
+  "blight": 43.86666666666667
+ },
+ "R2 max,cap2|B|murk+spore|random": {
+  "n": 80,
+  "win": 0.625,
+  "lit": 4.65,
+  "defense": 3.825,
+  "blight": 43.5625
+ },
+ "R2 max,cap2|B|murk+spore|lantern_only": {
+  "n": 80,
+  "win": 0.2375,
+  "lit": 0.85,
+  "defense": 0.3375,
+  "blight": 45.0625
+ },
+ "R2 max,cap2|B|murk+spore|wall_only": {
+  "n": 80,
+  "win": 0.8875,
+  "lit": 7.25,
+  "defense": 5.175,
+  "blight": 43.2375
+ },
+ "R2 max,cap2|B|murk+spore|flame_only": {
+  "n": 80,
+  "win": 1.0,
+  "lit": 13.425,
+  "defense": 8.2,
+  "blight": 39.5
+ },
+ "R2 max,cap2|B|murk+spore|mixed": {
+  "n": 30,
+  "win": 0.9666666666666667,
+  "lit": 11.3,
+  "defense": 5.8,
+  "blight": 42.266666666666666
+ },
+ "R2 max,cap2|B|rime+spore|random": {
+  "n": 80,
+  "win": 0.55,
+  "lit": 4.575,
+  "defense": 3.7125,
+  "blight": 44.2
+ },
+ "R2 max,cap2|B|rime+spore|lantern_only": {
+  "n": 80,
+  "win": 0.2125,
+  "lit": 0.375,
+  "defense": 0.0625,
+  "blight": 45.3375
+ },
+ "R2 max,cap2|B|rime+spore|wall_only": {
+  "n": 80,
+  "win": 0.5875,
+  "lit": 4.2125,
+  "defense": 3.3125,
+  "blight": 44.2625
+ },
+ "R2 max,cap2|B|rime+spore|flame_only": {
+  "n": 80,
+  "win": 1.0,
+  "lit": 18.2875,
+  "defense": 11.65,
+  "blight": 33.1125
+ },
+ "R2 max,cap2|B|rime+spore|mixed": {
+  "n": 30,
+  "win": 0.9666666666666667,
+  "lit": 13.3,
+  "defense": 6.0,
+  "blight": 41.3
+ },
+ "R2 max,cap2|B|rust+murk|random": {
+  "n": 80,
+  "win": 0.95,
+  "lit": 11.075,
+  "defense": 5.55,
+  "blight": 47.1125
+ },
+ "R2 max,cap2|B|rust+murk|lantern_only": {
+  "n": 80,
+  "win": 0.2375,
+  "lit": 2.1125,
+  "defense": 1.0125,
+  "blight": 44.075
+ },
+ "R2 max,cap2|B|rust+murk|wall_only": {
+  "n": 80,
+  "win": 1.0,
+  "lit": 10.8125,
+  "defense": 6.2125,
+  "blight": 45.6375
+ },
+ "R2 max,cap2|B|rust+murk|flame_only": {
+  "n": 80,
+  "win": 0.975,
+  "lit": 11.5125,
+  "defense": 5.6875,
+  "blight": 47.175
+ },
+ "R2 max,cap2|B|rust+murk|mixed": {
+  "n": 30,
+  "win": 0.9666666666666667,
+  "lit": 13.533333333333333,
+  "defense": 5.033333333333333,
+  "blight": 43.6
+ },
+ "R2 max,cap2|B|rime+hollow|random": {
+  "n": 80,
+  "win": 0.5375,
+  "lit": 3.4875,
+  "defense": 2.6875,
+  "blight": 44.2125
+ },
+ "R2 max,cap2|B|rime+hollow|lantern_only": {
+  "n": 80,
+  "win": 0.1625,
+  "lit": 0.475,
+  "defense": 0.2,
+  "blight": 45.3125
+ },
+ "R2 max,cap2|B|rime+hollow|wall_only": {
+  "n": 80,
+  "win": 0.625,
+  "lit": 3.5875,
+  "defense": 2.7,
+  "blight": 43.7625
+ },
+ "R2 max,cap2|B|rime+hollow|flame_only": {
+  "n": 80,
+  "win": 1.0,
+  "lit": 14.7375,
+  "defense": 8.9375,
+  "blight": 40.1375
+ },
+ "R2 max,cap2|B|rime+hollow|mixed": {
+  "n": 30,
+  "win": 0.7,
+  "lit": 7.266666666666667,
+  "defense": 3.6333333333333333,
+  "blight": 43.766666666666666
+ },
+ "R2 max,cap2|B|all5|random": {
+  "n": 80,
+  "win": 0.25,
+  "lit": 2.5625,
+  "defense": 2.1,
+  "blight": 46.1
+ },
+ "R2 max,cap2|B|all5|lantern_only": {
+  "n": 80,
+  "win": 0.1,
+  "lit": 0.6875,
+  "defense": 0.3375,
+  "blight": 46.45
+ },
+ "R2 max,cap2|B|all5|wall_only": {
+  "n": 80,
+  "win": 0.5,
+  "lit": 3.3625,
+  "defense": 2.5,
+  "blight": 44.8
+ },
+ "R2 max,cap2|B|all5|flame_only": {
+  "n": 80,
+  "win": 0.9125,
+  "lit": 10.7625,
+  "defense": 6.6375,
+  "blight": 39.2375
+ },
+ "R2 max,cap2|B|all5|mixed": {
+  "n": 30,
+  "win": 0.8,
+  "lit": 10.1,
+  "defense": 5.666666666666667,
+  "blight": 43.06666666666667
+ }
+}
