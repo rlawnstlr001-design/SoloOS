@@ -1,0 +1,44 @@
+# 프로토타입 플레이테스트 가이드 (M0)
+
+## 실행
+1. Godot 4.4.x(표준판)를 설치한다 (godotengine.org).
+2. 이 저장소를 받아 Godot에서 `project.godot`를 열고 F5, 또는 터미널에서 `godot --path .`
+3. 브랜치: `claude/great-euler-bwhi4f`
+
+## 조작
+| 입력 | 동작 |
+|---|---|
+| 카드 버튼 → 노란 테두리(프런티어) 칸 클릭 | 타일 확장 (하루 1회, 무료) |
+| 구조물 버튼 → 점등된 빈 칸 클릭 | 건설 (자원·LP 소모) |
+| 칸 클릭(선택) → Burst / Pyre / Seal 버튼 | 능력 사용 |
+| Space | 하루 종료 (Dusk 해결) |
+| F | 예고(다음 Dusk 결과) 표시 토글. `^N` 악화, `vN` 개선, `G#` 해당 칸 Guard |
+| 1~6 | 변종 세트 선택 후 새 게임 (1 murk, 2 murk+spore, 3 rime+spore, 4 rust+murk, 5 rime+hollow, 6 all5) |
+| R / Esc | 새 게임 / 선택 취소 |
+화면: 보라=Murk, 하늘=Rime, 노랑=Spore, 주황=Rust, 검정=Hollow, 빨간 테두리=Rift, 숫자=오염 강도, H=Hearth.
+
+## 테스트 과제
+1. 변종 1(murk)로 한 스테이지를 끝까지(12일) 플레이.
+2. 변종 3(rime+spore) 또는 6(all5)로 한 번 더.
+3. 예고를 끄고(F) 한 번 플레이해 보고 차이를 느껴 본다.
+
+## 기록할 것 (00 문서 통과 기준)
+- [ ] 끝난 뒤 "한 판 더" 하고 싶은가? (예/아니오, 이유)
+- [ ] 예고만 보고 다음 확산을 예측할 수 있었는가? (대략 몇 %)
+- [ ] 확장 드래프트(카드→배치 위치)에서 고민이 된 순간이 있었는가? (일 평균 몇 번)
+- [ ] 한 가지 구조물만 계속 지어도 이길 수 있었는가?
+- [ ] 자원(M/L)이 남아돌았는가, 부족했는가? Matter가 의미 있었는가?
+- [ ] Pyre, Sunwell, Burst, Seal을 써 봤는가? 어떤 건 쓸모없었는가?
+- [ ] 이해하기 어려웠던 UI/규칙 (예: Guard/Pressure 숫자)
+- [ ] 12일이 길었는가 짧았는가? 한 날의 소요 시간(초)
+
+## 프로토타입의 한계 (알고 시작할 것)
+- 플레이스홀더 그래픽, 사운드 없음, 되돌리기/저장 없음, 튜토리얼 없음
+- 미구현: 인사이트, 유물, Growth 계열(Planter/Bloom 등), 키퍼/동료, 헤럴드, 오멘, 메타(Lattice/Haven)
+- 규칙은 v0.2(docs/design/01_rules.md)이며 봇 시뮬레이션으로만 조정됨. 사람 플레이로 처음 검증하는 단계.
+
+## 자동 테스트 (개발용)
+    godot --headless --path . -s tests/parity_test.gd   # GDScript = Python 참조 구현 일치 (238건)
+    godot --headless --path . -s tests/ui_test.gd       # UI 입력 경로
+    godot --headless --path . -s tests/smoke_test.gd    # 240판 무작위 플레이 크래시 검사
+    python3 sim_proto/export_parity.py tests/parity_cases.json   # 참조 케이스 재생성
