@@ -35,7 +35,7 @@ BASE_STRUCT = {
     'beacon': (6, 3, 2, 3, (3, 2, 1), 0, 'light'),
     'palisade': (2, 0, 1, 2, (0, 0, 0), 1, 'ward'),
     'rampart': (4, 1, 1, 4, (0, 0, 0), 2, 'ward'),
-    'pyre': (7, 3, 1, 3, (0, 0, 0), 0, 'flame'),
+    'pyre': (5, 2, 1, 3, (0, 0, 0), 0, 'flame'),
     'sunwell': (10, 6, 2, 3, (1, 1, 0), 0, 'light'),
     'camp': (4, 0, 1, 3, (0, 0, 0), 0, None),
     'cottage': (5, 0, 1, 3, (0, 0, 0), 0, None),
@@ -46,13 +46,18 @@ CLASSES = ('light', 'flame', 'ward')
 
 
 class Game:
-    def __init__(self, seed, variants=('murk',), rule='A', rifts=3, days=12, lp_bonus=0, pf=(0, 1, 2, 3), wild_cap=3, pmode='sum', seal_range=1, base_m=2, base_l=1):
+    def __init__(self, seed, variants=('murk',), rule='A', rifts=3, days=12, lp_bonus=0, pf=(0, 1, 2, 3), wild_cap=3, pmode='sum', seal_range=1, base_m=2, base_l=1, upkeep=False, seal_goal=3, far_w=0.0, burst_cd=3):
         self.rng = random.Random(seed)
         self.seed = seed
         self.variants = list(variants)
         self.pf = pf
         self.seal_range = seal_range
         self.base_m = base_m
+        self.upkeep = upkeep
+        self.seal_goal = seal_goal
+        self.far_w = far_w
+        self.burst_cd = burst_cd
+        self.dark = set()
         self.base_l = base_l
         self.cd = {}
         self.sealed = 0
@@ -101,6 +106,8 @@ class Game:
             setattr(c, k, list(getattr(self, k)))
         c.window = deque(self.window, maxlen=3)
         c.resist = dict(self.resist)
+        c.dark = set(self.dark)
+        c.cd = dict(self.cd)
         c.stats = dict(self.stats)
         c.rng = random.Random(0)
         return c
@@ -115,7 +122,7 @@ class Game:
         co = [0] * N
         for i in range(N):
             s = self.struct[i]
-            if s is None or not self.lit[i] or self.disabled(i):
+            if s is None or not self.lit[i] or self.disabled(i) or i in self.dark:
                 continue
             if s == 'hearth':
                 p, cls = (3, 2, 1), 'core'
@@ -310,6 +317,17 @@ class Game:
                 self.L += v // 2 if frozen else v
             elif s == 'cottage':
                 cottages += 1
+        self.dark = set()
+        if self.upkeep:
+            lights = [i for i in range(N) if self.struct[i] in ('lantern', 'brazier', 'beacon', 'sunwell') and self.lit[i] and not self.scar[i]]
+            need = (len(lights) + 1) // 2
+            if self.L >= need:
+                self.L -= need
+            else:
+                afford = self.L * 2
+                self.L = 0
+                lights.sort(key=lambda i: DIST[HEARTH][i])
+                self.dark = set(lights[afford:])
         cap = 4 + 2 * cottages
         if self.day % 3 == 0 and self.folk < cap: self.folk += 1
         self.lp = self.folk + self.lp_bonus
@@ -344,18 +362,18 @@ class Game:
 
     def burst(self, i):
         self.n_burst += 1
-        self.L -= 3; self.lp -= 2; self.cd[('b', i)] = 3
+        self.L -= 3; self.lp -= 2; self.cd[('b', i)] = self.burst_cd
         for j in range(N):
             if DIST[i][j] <= 2 and self.inten[j] > 0 and j not in self.rift:
                 self.inten[j] -= 1
                 if self.inten[j] == 0: self.var[j] = None
 
     def can_pyre(self, i):
-        return self.struct[i] == 'pyre' and self.lit[i] and not self.disabled(i) and self.cd.get(('p', i), 0) == 0 and self.L >= 5 and self.lp >= 2
+        return self.struct[i] == 'pyre' and self.lit[i] and not self.disabled(i) and self.cd.get(('p', i), 0) == 0 and self.L >= 3 and self.lp >= 1
 
     def pyre_fire(self, i):
         self.n_pyre += 1
-        self.L -= 5; self.lp -= 2; self.cd[('p', i)] = 4
+        self.L -= 3; self.lp -= 1; self.cd[('p', i)] = 3
         for j in range(N):
             if DIST[i][j] <= 1 and 0 < self.inten[j] <= 2 and j not in self.rift:
                 self.inten[j] = 0; self.var[j] = None
@@ -367,7 +385,7 @@ class Game:
     def seal(self, i, r):
         self.L -= 5; self.lp -= 2
         self.rift.discard(r); self.inten[r] = 0; self.var[r] = None; self.sealed += 1
-        if not self.rift:
+        if self.sealed >= min(self.seal_goal, self.sealed + len(self.rift)):
             self.over = True; self.won = True; self.early = True
 
     def end_day(self):
@@ -392,5 +410,5 @@ class Game:
         lit = sum(1 for i in range(N) if self.lit[i] and not self.scar[i])
         defs = sum(1 for i in range(N) if self.lit[i] and self.struct[i] in ('lantern', 'brazier', 'beacon', 'palisade', 'rampart'))
         blight = sum(1 for i in range(N) if self.inten[i] > 0)
-        ember = self.day * 2 + self.territory_days / 4 + 3 * lit + 25 * self.sealed + (30 if self.won else 0) + (20 if self.early else 0)
+        ember = self.day * 2 + self.territory_days / 4 + 3 * lit + 25 * self.sealed + (30 if self.won else 0) + (20 if self.early else 0) + self.far_w * self.far_days
         return dict(far_days=self.far_days, n_burst=self.n_burst, n_pyre=self.n_pyre, ember=ember, sealed=self.sealed, early=self.early, tdays=self.territory_days, M=self.M, L=self.L, builds=self.stats['builds'], placed=self.stats['tiles_placed'], won=self.won, day=self.day, lit=lit, scars=sum(self.scar), defense=defs, blight=blight, folk=self.folk)

@@ -79,7 +79,7 @@ def make(expand_mode, actives, rush):
 
 
 def play2(seed, variants, cfg, regime):
-    g = Game(seed, variants, 'B', 3, pmode='max', wild_cap=3, seal_range=cfg.get('seal_range', 1), base_m=cfg.get('base_m', 2), base_l=cfg.get('base_l', 1))
+    g = Game(seed, variants, 'B', 3, pmode='max', wild_cap=3, seal_range=cfg.get('seal_range', 1), base_m=cfg.get('base_m', 2), base_l=cfg.get('base_l', 1), upkeep=cfg.get('upkeep', False), seal_goal=cfg.get('seal_goal', 3), far_w=cfg.get('far_w', 0.0), burst_cd=cfg.get('burst_cd', 3))
     rng = random.Random(seed * 13 + 7)
     pol = make(cfg['expand'], cfg['actives'], cfg['rush'])
     while not g.over:

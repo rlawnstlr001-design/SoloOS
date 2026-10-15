@@ -31,13 +31,13 @@ T1 기본 해금 / T2~T4는 메타 해금. 업그레이드(Lv II): 비용 +50%, 
 | 8 | Storehouse | 경제 | 2 | 4M | 자원 상한 +10, 스테이지 이월 75% |
 | 9 | Tidal Pump | 경제 | 2 | 5M 2L | 물가/습지에서 일 +2L |
 | 10 | Lantern | 빛 | 1 | 3M 1L | Light 2/1 |
-| 11 | Beacon Spire | 빛 | 2 | 6M 3L | Light 3/2/1, 능력 Beacon Burst(3L 2LP, 반경2 강도-1, 쿨3일) |
+| 11 | Beacon Spire | 빛 | 2 | 6M 3L | Light 3/2/1, 능력 Beacon Burst(3L 2LP, 반경2 강도-1, **쿨4일**) |
 | 12 | Prism Tower | 빛 | 3 | 7M 4L | 한 방향 4칸 직선, Dusk마다 강도 -1 (방벽에 막힘) |
 | 13 | Mirror Array | 빛 | 3 | 6M 3L | 인접 Lantern/Beacon 빛 반경 +1 (중첩 불가) |
 | 14 | Sunwell | 빛 | 4 | 10M 6L | 반경2 Scar 하루 1칸 복구, Rift 봉인(5L) |
 | 15 | Brazier | 화염 | 1 | 4M 2L | Light 2/1, 인접 Rime/Spore 강도 -1(Spore -2) |
 | 16 | Kiln | 화염 | 2 | 5M 2L | 인접 Brazier 효과 +1 |
-| 17 | Pyre | 화염 | 3 | 7M 3L | 능력: 반경1 강도≤2 전부 제거(5L 2LP, 쿨4일) |
+| 17 | Pyre | 화염 | 3 | 5M 2L | 능력: 반경1 강도≤2 전부 제거(3L 1LP, 쿨3일). **[v0.2 검증 필요: 시뮬레이션 미사용, 사람 테스트 후 삭제 가능]** |
 | 18 | Forge Beacon | 화염 | 4 | 10M 5L | Pyre/Brazier 범위 +1, 스테이지당 1회 Eruption(반경3 Murk/Rime 소거) |
 | 19 | Palisade | 방벽 | 1 | 2M | Guard +1, HP 2, Hollow 흡입 차단 |
 | 20 | Rampart | 방벽 | 2 | 4M 1L | Guard +2, HP 4, 인접 Palisade +1 |
@@ -51,6 +51,8 @@ T1 기본 해금 / T2~T4는 메타 해금. 업그레이드(Lv II): 비용 +50%, 
 | 28 | Watchtower | 지원 | 2 | 4M 1L | 예고 +1 Dusk, 오멘 하루 일찍 공지 |
 | 29 | Shrine | 지원 | 2 | 4M 2L | 3일마다 동료 이벤트(선택지) |
 | 30 | Cartographer's Post | 지원 | 3 | 6M 3L | 타일 카드 4장 제시, Fog 반경2 공개 |
+
+유지비(v0.2): 빛 구조물(Lantern/Brazier/Beacon/Sunwell) 2개당 새벽에 Lumen 1.
 
 설계 의도:
 - 방어는 **변종별 카운터**가 다르다 (03 문서). 한 가지만 쌓으면 적응 시스템이 압박한다.
