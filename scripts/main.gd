@@ -10,7 +10,7 @@ const VSETS := [
 ]
 const VNAMES := ["murk", "murk+spore", "rime+spore", "rust+murk", "rime+hollow", "all5"]
 const SIZE := 19.0
-const CENTER := Vector2(215, 182)
+const CENTER := Vector2(215, 168)
 const T_COLOR := {
 	"meadow": Color(0.35, 0.62, 0.30), "woodland": Color(0.18, 0.45, 0.25), "hill": Color(0.62, 0.55, 0.32),
 	"marsh": Color(0.30, 0.50, 0.45), "ruins": Color(0.55, 0.52, 0.55), "crystal": Color(0.45, 0.78, 0.85),
@@ -40,7 +40,26 @@ var msg := "Welcome. Place a tile card, build, then End Day (Space)."
 var fc: Array = []
 var font: Font
 var ko := OS.get_locale_language() == "ko"
-var show_help := true
+var show_help := false
+var scr := "menu"          # "menu", "tutorial", "play"
+var tut := 0
+var tut_a := -1
+var tut_b := -1
+var tut_src: Array = []
+var flash: Dictionary = {}   # tile -> "worse" | "better" | "lost"
+var flash_t := 0.0
+
+const TUT := [
+	{"id": "intro", "next": true, "en": "Welcome! GOAL: keep the center hex H alive for 12 days. Everything else is a tool for that.", "kr": "환영합니다! 목표: 12일 동안 가운데 H(베이스)를 지키는 것. 나머지는 전부 그 수단입니다."},
+	{"id": "blight", "next": true, "en": "The glowing purple hexes are BLIGHT. It spreads every night. This one is already right next to your land!", "kr": "반짝이는 보라색 칸이 '오염'입니다. 밤마다 번집니다. 지금 내 땅 바로 옆까지 와 있어요!"},
+	{"id": "danger", "next": true, "en": "Red triangle = DANGER. P3>D2 means blight Pressure 3 beats your Defense 2, so that hex is eaten tonight. Red arrows show where it comes from.", "kr": "빨간 삼각형 = 위험. P3>D2는 오염 압력 3이 내 방어 2를 이겨서 오늘 밤 그 칸이 먹힌다는 뜻. 빨간 화살표가 오염이 오는 방향입니다."},
+	{"id": "build", "next": false, "en": "Add defense! Click the PALISADE button, then click each glowing hex (+1 defense per wall).", "kr": "방어를 올리세요! PALISADE 버튼을 누르고, 반짝이는 칸을 각각 클릭하세요 (방벽 하나당 방어 +1)."},
+	{"id": "safe", "next": true, "en": "Green check = SAFE. Defense 3 now holds against Pressure 3. You can see danger BEFORE it happens and fix it. That is the whole game.", "kr": "초록 체크 = 안전. 방어 3이 압력 3을 막습니다. 위험을 미리 보고 막는 것, 이게 이 게임의 전부입니다."},
+	{"id": "expand", "next": false, "en": "Now grow: click a CARD button, then a yellow-outlined hex. More land = more room to build defenses.", "kr": "이제 넓히세요: CARD 버튼을 누르고 노란 테두리 칸을 클릭. 땅이 넓어야 방어를 지을 자리가 생깁니다."},
+	{"id": "endday", "next": false, "en": "Press END DAY. Night falls and the blight spreads.", "kr": "END DAY(하루 끝내기)를 누르세요. 밤이 되어 오염이 번집니다."},
+	{"id": "result", "next": true, "en": "Your land held! Blight crept into empty land instead. Every night it comes closer: keep walling the red-triangle hexes and expand a little each day.", "kr": "내 땅이 버텼습니다! 오염은 빈 땅으로 번졌어요. 매일 밤 가까워지니, 빨간 삼각형이 뜨는 칸을 막고 하루에 한 칸씩 넓히세요."},
+	{"id": "tools", "next": true, "final": true, "en": "More tools: LANTERN/BRAZIER add light (defense). BEACON can BURST to cleanse blight. Survive 12 days to win. Good luck!", "kr": "다른 도구: LANTERN/BRAZIER=빛(방어). BEACON은 Burst로 오염 정화. 12일 버티면 승리. 행운을 빕니다!"},
+]
 
 
 func T(en: String, kr: String) -> String:
@@ -61,10 +80,47 @@ func _ready() -> void:
 	sf.font_names = PackedStringArray(["Malgun Gothic", "Noto Sans CJK KR", "Apple SD Gothic Neo", "NanumGothic", "sans-serif"])
 	sf.fallbacks = [ThemeDB.fallback_font]
 	font = sf
+	g = GS.new()
+	g.setup(1, VSETS[0])
+	g.dawn()
+	scr = "menu"
+	_refresh()
+
+
+func _start_free() -> void:
+	scr = "play"
 	_new_game()
 
 
+func _start_tutorial() -> void:
+	scr = "tutorial"
+	tut = 0
+	g = GS.new()
+	g.setup(3, ["murk"])
+	tut_a = GS.IDX[Vector2i(1, 0)]
+	tut_b = GS.IDX[Vector2i(1, -1)]
+	g.terrain[tut_a] = "meadow"; g.terrain[tut_b] = "meadow"
+	tut_src = [GS.IDX[Vector2i(2, -1)], GS.IDX[Vector2i(3, -1)]]
+	for t in tut_src:
+		g.inten[t] = 3; g.var_[t] = "murk"
+	g.dawn()
+	g.cards = ["meadow", "woodland", "hill"]
+	selected = -1; mode = ""; card_idx = -1; build_name = ""; placed_today = false; flash.clear()
+	msg = ""
+	_refresh()
+
+
+func _open_menu() -> void:
+	scr = "menu"; flash.clear(); _refresh()
+
+
+func _toggle_lang() -> void:
+	ko = not ko; _refresh()
+
+
 func _new_game() -> void:
+	if scr == "menu": scr = "play"
+	flash.clear()
 	g = GS.new()
 	g.setup(seed_n, VSETS[vset_idx])
 	g.dawn()
@@ -75,6 +131,7 @@ func _new_game() -> void:
 
 func _refresh() -> void:
 	fc = g.forecast()
+	_tut_progress()
 	_build_ui()
 	queue_redraw()
 
@@ -111,6 +168,9 @@ var hover_btn := -1
 
 func _build_ui() -> void:
 	btns.clear(); texts.clear()
+	if scr == "menu":
+		_build_menu()
+		return
 	var x := 392.0
 	var y := 4.0
 	var resist_txt := ""
@@ -118,7 +178,7 @@ func _build_ui() -> void:
 		if g.resist[c] > 0: resist_txt += " RESIST-%s(%d)" % [c, g.resist[c]]
 	_text(Vector2(x, y + 8), 240, "Day %d/%d   Rifts %d   Sealed %d\nM %d   L %d   Folk %d   LP %d%s\nLit %d   Ember~%d" % [g.day, g.days, g.rift.size(), g.sealed, g.M, g.L, g.folk, g.lp, resist_txt, g.lit_count(), int(g.ember())], Color(1, 1, 1), 9)
 	y += 40
-	_text(Vector2(x, y + 8), 240, _hint(), Color(1, 0.9, 0.4), 9)
+	_text(Vector2(x, y + 8), 240, _hint() if scr != "tutorial" else T("Tutorial: follow the glowing step.", "튜토리얼: 반짝이는 단계를 따라 하세요."), Color(1, 0.9, 0.4), 9)
 	y += 30
 	if not g.over:
 		for k in range(g.cards.size()):
@@ -146,6 +206,11 @@ func _build_ui() -> void:
 	_btn(T("HELP (H)", "도움말 (H)"), Vector2(x + 120, y), Vector2(116, 13), _toggle_help, true, show_help)
 	y += 18
 	_text(Vector2(x, y + 8), 240, _info_text(), Color(0.85, 0.85, 0.9), 8)
+	if scr == "tutorial":
+		var st: Dictionary = TUT[tut]
+		if st["next"]:
+			_btn(T("START PLAYING >", "게임 시작 >") if st.get("final", false) else T("NEXT >", "다음 >"), Vector2(290, 326), Vector2(94, 18), _tut_next, true, true)
+		_btn(T("Skip tutorial", "튜토리얼 건너뛰기"), Vector2(392, 344), Vector2(120, 12), _start_free, true, false)
 
 
 func _btn(t: String, p: Vector2, sz: Vector2, cb: Callable, on: bool, act: bool) -> void:
@@ -189,28 +254,161 @@ func _btn_at(p: Vector2) -> int:
 	return -1
 
 
+# ---------------- menu / tutorial ----------------
+func _build_menu() -> void:
+	_btn(T("TUTORIAL  (learn in 2 minutes)", "튜토리얼  (2분이면 배워요)"), Vector2(210, 150), Vector2(220, 26), _start_tutorial, true, true)
+	_btn(T("FREE PLAY", "자유 플레이"), Vector2(210, 184), Vector2(220, 20), _start_free, true, false)
+	_btn(T("Language: English  (click for 한국어)", "언어: 한국어  (클릭: English)"), Vector2(210, 212), Vector2(220, 14), _toggle_lang, true, false)
+
+
+func _tut_allows(kind: String, arg: Variant = null) -> bool:
+	if scr != "tutorial": return true
+	match TUT[tut]["id"]:
+		"build":
+			if kind == "build_btn": return arg == "palisade"
+			if kind == "tile_build": return arg == tut_a or arg == tut_b
+			return false
+		"expand":
+			return kind == "card" or kind == "place"
+		"endday":
+			return kind == "endday"
+	return false
+
+
+func _tut_blocked() -> void:
+	msg = T("Follow the glowing step.", "반짝이는 단계를 따라 하세요.")
+	_refresh()
+
+
+func _tut_progress() -> void:
+	if scr != "tutorial": return
+	var id: String = TUT[tut]["id"]
+	if id == "build" and g.structs[tut_a] == "palisade" and g.structs[tut_b] == "palisade":
+		_tut_advance()
+	elif id == "expand" and placed_today:
+		_tut_advance()
+	elif id == "endday" and g.day >= 2:
+		_tut_advance()
+
+
+func _tut_advance() -> void:
+	tut = mini(tut + 1, TUT.size() - 1)
+	mode = ""; card_idx = -1; build_name = ""
+
+
+func _tut_next() -> void:
+	if tut < TUT.size() - 1:
+		tut += 1
+		_refresh()
+	else:
+		_start_free()
+
+
+func _pulse() -> float:
+	return 0.5 + 0.5 * sin(Time.get_ticks_msec() / 160.0)
+
+
+func _hl_hex(i: int, c: Color) -> void:
+	var pts := hex_pts(hex_pos(i), SIZE + 1.0)
+	pts.append(pts[0])
+	draw_polyline(pts, Color(c.r, c.g, c.b, 0.35 + 0.65 * _pulse()), 3.0)
+
+
+func _hl_btn(prefix: String) -> void:
+	for b in btns:
+		if String(b["t"]).begins_with(prefix):
+			draw_rect((b["r"] as Rect2).grow(2.0), Color(1, 1, 0.2, 0.35 + 0.65 * _pulse()), false, 2.0)
+
+
+func _arrow(a: Vector2, b: Vector2, c: Color) -> void:
+	draw_line(a, b, c, 2.0)
+	var d := (b - a).normalized()
+	var n := Vector2(-d.y, d.x)
+	draw_colored_polygon(PackedVector2Array([b, b - d * 6 + n * 3.5, b - d * 6 - n * 3.5]), c)
+
+
+func _draw_markers() -> void:
+	var pr: Array = fc[2]; var gd: Array = fc[3]
+	for i in range(GS.N):
+		if not g.lit[i] or g.scar[i] or pr[i] <= 0: continue
+		var p := hex_pos(i)
+		if pr[i] > gd[i]:
+			for j in GS.NEI[i]:
+				if g.inten[j] > 0 and not g.scar[j]:
+					var a := hex_pos(j)
+					var d := (p - a).normalized()
+					_arrow(a + d * 7.0, p - d * 11.0, Color(1, 0.3, 0.3, 0.9))
+			draw_colored_polygon(PackedVector2Array([p + Vector2(0, -16), p + Vector2(-8, -2), p + Vector2(8, -2)]), Color(0.95, 0.12, 0.12))
+			draw_string(font, p + Vector2(-3, -4), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1))
+			if g.inten[i] == 0:
+				draw_string(font, p + Vector2(-14, 15), "P%d>D%d" % [pr[i], gd[i]], HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(1, 0.75, 0.75))
+		else:
+			draw_polyline(PackedVector2Array([p + Vector2(-6, -9), p + Vector2(-2, -5), p + Vector2(6, -15)]), Color(0.3, 1, 0.45), 2.5)
+			if g.inten[i] == 0:
+				draw_string(font, p + Vector2(-14, 15), "P%d<=D%d" % [pr[i], gd[i]], HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.7, 1, 0.8))
+
+
+func _draw_tutorial() -> void:
+	var st: Dictionary = TUT[tut]
+	match st["id"]:
+		"intro": _hl_hex(GS.HEARTH, Color(1, 1, 0.3))
+		"blight":
+			for i in tut_src: _hl_hex(i, Color(1, 0.4, 1))
+		"danger":
+			_hl_hex(tut_a, Color(1, 0.2, 0.2)); _hl_hex(tut_b, Color(1, 0.2, 0.2))
+		"build":
+			_hl_btn("palisade")
+			for t in [tut_a, tut_b]:
+				if g.structs[t] == "": _hl_hex(t, Color(1, 1, 0.3))
+		"safe":
+			_hl_hex(tut_a, Color(0.3, 1, 0.5)); _hl_hex(tut_b, Color(0.3, 1, 0.5))
+		"expand": _hl_btn(T("Card", "카드"))
+		"endday": _hl_btn(T("END DAY", "하루 끝내기"))
+	draw_rect(Rect2(6, 304, 382, 52), Color(0.03, 0.03, 0.08, 0.95))
+	draw_rect(Rect2(6, 304, 382, 52), Color(1, 0.9, 0.3), false, 1.5)
+	draw_string(font, Vector2(14, 315), "%s %d/%d" % [T("TUTORIAL", "튜토리얼"), tut + 1, TUT.size()], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(1, 0.9, 0.3))
+	draw_multiline_string(font, Vector2(14, 327), T(st["en"], st["kr"]), HORIZONTAL_ALIGNMENT_LEFT, 270 if st["next"] else 366, 8, 4, Color(1, 1, 1))
+
+
+func _draw_menu() -> void:
+	draw_rect(Rect2(0, 0, 640, 360), Color(0.06, 0.06, 0.09))
+	var c := Vector2(320, 110)
+	for k in range(7):
+		var pts := hex_pts(c + Vector2((k - 3) * 38.0, 0), 17.0)
+		draw_colored_polygon(pts, Color(0.35, 0.18, 0.55, 0.9) if k < 3 else (Color(0.95, 0.75, 0.3) if k == 3 else Color(0.35, 0.62, 0.30)))
+	draw_string(font, Vector2(0, 52), "DIMHOLD", HORIZONTAL_ALIGNMENT_CENTER, 640, 28, Color(1, 0.92, 0.7))
+	draw_string(font, Vector2(0, 72), T("Hold the light. Push back the dark.", "빛을 지켜라. 어둠을 밀어내라."), HORIZONTAL_ALIGNMENT_CENTER, 640, 11, Color(0.8, 0.8, 0.9))
+	_draw_ui()
+	draw_string(font, Vector2(0, 250), T("Prototype v0.2  -  first time? Start the tutorial.", "프로토타입 v0.2  -  처음이라면 튜토리얼부터 하세요."), HORIZONTAL_ALIGNMENT_CENTER, 640, 9, Color(0.7, 0.7, 0.8))
+
+
 # ---------------- actions ----------------
 func _on_card(k: int) -> void:
+	if not _tut_allows("card"): _tut_blocked(); return
 	mode = "card"; card_idx = k; build_name = ""
 	msg = "Click a highlighted frontier hex to place %s." % g.cards[k]
 	_refresh()
 
 
 func _on_build(n: String) -> void:
+	if not _tut_allows("build_btn", n): _tut_blocked(); return
 	mode = "build"; build_name = n; card_idx = -1
 	msg = "Click a lit empty hex to build %s." % n
 	_refresh()
 
 
 func _on_burst() -> void:
+	if scr == "tutorial": return
 	g.burst(selected); msg = "Beacon Burst!"; _refresh()
 
 
 func _on_pyre() -> void:
+	if scr == "tutorial": return
 	g.pyre_fire(selected); msg = "Pyre fire!"; _refresh()
 
 
 func _on_seal() -> void:
+	if scr == "tutorial": return
 	var t: Array = g.seal_targets(selected)
 	g.seal(selected, t[0]); msg = "Rift sealed!"; _refresh()
 
@@ -237,19 +435,35 @@ func _toggle_fc() -> void:
 
 
 func _next_vset() -> void:
-	vset_idx = (vset_idx + 1) % VSETS.size(); seed_n += 1; _new_game()
+	vset_idx = (vset_idx + 1) % VSETS.size(); seed_n += 1; scr = "play"; _new_game()
 
 
 func _end_day() -> void:
 	if g.over: return
+	if not _tut_allows("endday"): _tut_blocked(); return
 	var before: int = g.lit_count()
+	var prev_i: Array = g.inten.duplicate()
+	var prev_l: Array = g.lit.duplicate()
 	g.end_day()
+	flash.clear()
+	var nw := 0; var nb := 0; var nl := 0
+	for i in range(GS.N):
+		if prev_l[i] and not g.lit[i]:
+			flash[i] = "lost"; nl += 1
+		elif g.inten[i] > prev_i[i] and g.lit[i]:
+			flash[i] = "worse"; nw += 1
+		elif g.inten[i] < prev_i[i]:
+			flash[i] = "better"; nb += 1
+		elif g.inten[i] > prev_i[i]:
+			flash[i] = "wild"
+	flash_t = 2.5
 	if g.over:
-		msg = "Stage over: %s" % ("VICTORY" if g.won else "DEFEAT")
+		msg = T("Stage over: %s", "스테이지 종료: %s") % [T("VICTORY", "승리") if g.won else T("DEFEAT", "패배")]
 	else:
 		g.dawn()
 		placed_today = false; mode = ""; card_idx = -1; build_name = ""
-		msg = "Day %d. Lit %d -> %d." % [g.day, before, g.lit_count()]
+		if scr == "tutorial": g.cards = ["meadow", "woodland", "hill"]
+		msg = T("Night result: %d of your hexes worsened, %d improved, %d lost. (Day %d)", "밤의 결과: 내 칸 %d개 악화, %d개 개선, %d개 상실. (%d일차)") % [nw, nb, nl, g.day]
 	_refresh()
 
 
@@ -266,35 +480,56 @@ func _unhandled_input(e: InputEvent) -> void:
 		if bi >= 0:
 			if btns[bi]["on"]: btns[bi]["cb"].call()
 			return
+		if scr == "menu": return
 		var i := pick(e.position)
 		if i < 0 or g.over: return
 		if mode == "card" and card_idx >= 0 and not placed_today:
+			if not _tut_allows("place"): _tut_blocked(); return
 			if g.frontier().has(i):
 				g.place_tile(i, card_idx); placed_today = true; mode = ""; card_idx = -1
 				msg = "Placed tile. Now build / use abilities."
 			else:
 				msg = "Not a frontier hex."
 		elif mode == "build" and build_name != "":
+			if not _tut_allows("tile_build", i): _tut_blocked(); return
 			if g.can_build(build_name, i):
 				g.build(build_name, i); msg = "Built %s." % build_name
 			else:
 				msg = "Cannot build %s there (cost/LP/blight/occupied)." % build_name
-		else:
+		elif scr != "tutorial":
 			selected = i
 		_refresh()
 	elif e is InputEventKey and e.pressed:
+		if scr == "menu":
+			if e.keycode == KEY_T: _start_tutorial()
+			elif e.keycode == KEY_L: _toggle_lang()
+			return
+		if scr == "tutorial" and e.keycode != KEY_SPACE and e.keycode != KEY_ESCAPE and e.keycode != KEY_F: return
 		match e.keycode:
 			KEY_SPACE: _end_day()
+			KEY_T: _start_tutorial()
+			KEY_M: _open_menu()
 			KEY_F: _toggle_fc()
 			KEY_H: _toggle_help()
-			KEY_R: _new_game()
+			KEY_R: _start_free()
 			KEY_ESCAPE: mode = ""; card_idx = -1; build_name = ""; selected = -1; _refresh()
 			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
-				vset_idx = e.keycode - KEY_1; seed_n += 1; _new_game()
+				vset_idx = e.keycode - KEY_1; seed_n += 1; scr = "play"; _new_game()
+
+
+func _process(delta: float) -> void:
+	if flash_t > 0.0:
+		flash_t -= delta
+		queue_redraw()
+	elif scr == "tutorial":
+		queue_redraw()
 
 
 # ---------------- drawing ----------------
 func _draw() -> void:
+	if scr == "menu":
+		_draw_menu()
+		return
 	draw_rect(Rect2(0, 0, 640, 360), Color(0.07, 0.07, 0.10))
 	if g == null: return
 	var pr: Array = fc[2]; var gd: Array = fc[3]
@@ -321,7 +556,7 @@ func _draw() -> void:
 			draw_string(font, p + Vector2(-8, 3), code, HORIZONTAL_ALIGNMENT_CENTER, 16, 9, tc)
 		if g.inten[i] > 0:
 			draw_string(font, p + Vector2(-3, 13), str(g.inten[i]), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(1, 1, 1))
-		if show_fc and not g.scar[i] and not g.rift.has(i):
+		if show_fc and g.lit[i] and not g.scar[i] and not g.rift.has(i):
 			var d: int = fc[0][i] - g.inten[i]
 			if d > 0:
 				draw_string(font, p + Vector2(4, -8), "^%d" % fc[0][i], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(1, 0.35, 0.35))
@@ -333,7 +568,18 @@ func _draw() -> void:
 			draw_polyline(hex_pts(p, SIZE - 1.0) + PackedVector2Array([hex_pts(p, SIZE - 1.0)[0]]), Color(1, 1, 1), 2.0)
 		elif i == hover:
 			draw_polyline(hex_pts(p, SIZE - 1.0) + PackedVector2Array([hex_pts(p, SIZE - 1.0)[0]]), Color(0.8, 0.8, 0.8), 1.0)
+	if show_fc: _draw_markers()
+	if flash_t > 0.0:
+		for i in flash.keys():
+			var fcol := Color(1, 0.2, 0.2)
+			if flash[i] == "better": fcol = Color(0.3, 1, 0.5)
+			elif flash[i] == "lost": fcol = Color(1, 1, 1)
+			elif flash[i] == "wild": fcol = Color(0.8, 0.4, 1)
+			var pts := hex_pts(hex_pos(i), SIZE)
+			pts.append(pts[0])
+			draw_polyline(pts, Color(fcol.r, fcol.g, fcol.b, minf(1.0, flash_t)), 3.0)
 	_draw_ui()
+	if scr == "tutorial": _draw_tutorial()
 	if show_help:
 		var lines: Array = [
 			T("HOW TO PLAY (click anywhere to close, H to reopen)", "플레이 방법 (아무 곳이나 클릭하면 닫힘, H로 다시 열기)"),

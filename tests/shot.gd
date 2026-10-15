@@ -10,36 +10,32 @@ func _init() -> void:
 	m = load("res://scenes/main.tscn").instantiate()
 	root.add_child(m)
 
+func _click(i: int) -> void:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = m.hex_pos(i)
+	m._unhandled_input(ev)
+
 func _process(_d: float) -> bool:
 	frames += 1
-	if frames == 5:
-		_save("help")
-		m.show_help = false
-		m._refresh()
-	if frames == 6:
-		_save("day1")
-		# play a few scripted days with the real UI methods
-		var g = m.g
-		m.show_fc = true
-		g.place_tile(g.frontier()[0], 0); m.placed_today = true
-		g.build("lantern", g.NEI[g.HEARTH][0]); g.build("camp", g.NEI[g.HEARTH][2])
-		m._refresh()
-	if frames == 8: _save("day1_built")
-	if frames == 9:
-		for k in range(6):
-			m._end_day()
-			var gg = m.g
-			if gg.over: break
-			var fr = gg.frontier()
-			if fr.size() > 0 and not m.placed_today:
-				gg.place_tile(fr[0], 0); m.placed_today = true
-		m._refresh()
-	if frames == 12:
-		_save("day7")
-		quit(0)
+	match frames:
+		4: _save("1_menu")
+		5: m._start_tutorial()
+		8: _save("2_tut_intro")
+		9: m._tut_next(); m._tut_next()
+		12: _save("3_tut_danger")
+		13: m._tut_next(); m._on_build("palisade")
+		15: _save("4_tut_build")
+		16: _click(m.tut_a); _click(m.tut_b)
+		19: _save("5_tut_safe")
+		20: m._tut_next(); m._on_card(0); _click(m.g.frontier()[0])
+		22: m._end_day()
+		24: _save("6_tut_after_night")
+		25: quit(0)
 	return false
 
 func _save(n: String) -> void:
 	var img := root.get_viewport().get_texture().get_image()
 	img.save_png("%s/%s.png" % [out, n])
-	print("saved ", n, " ", img.get_size())
+	print("saved ", n)

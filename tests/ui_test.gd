@@ -32,8 +32,11 @@ func _key(k: int) -> void:
 func _process(_d: float) -> bool:
 	step += 1
 	if step == 2:
+		_check(m.scr == "menu", "game starts at the menu")
+		m._start_free()
+		m.show_help = true
 		var g = m.g
-		_check(m.show_help, "help overlay is shown at start")
+		_check(m.scr == "play", "free play starts")
 		_click(0)
 		_check(not m.show_help, "first click closes help")
 		var lit0: int = g.lit_count()
