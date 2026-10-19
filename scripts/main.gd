@@ -340,7 +340,8 @@ func _btn_at(p: Vector2) -> int:
 
 # ---------------- menu / tutorial ----------------
 func _build_menu() -> void:
-	_btn(T("NEW: 3D REAL-TIME VERSION", "신규: 3D 실시간 버전"), Vector2(210, 140), Vector2(220, 26), func(): get_tree().change_scene_to_file("res://scenes/world3d.tscn"), true, true)
+	_btn(T("TOY 1: RANDOM DEFENSE (summon & merge)", "장난감 1: 랜덤 디펜스 (소환·합성)"), Vector2(210, 112), Vector2(220, 26), func(): get_tree().change_scene_to_file("res://scenes/toy_random.tscn"), true, true)
+	_btn(T("3D real-time blight version", "3D 실시간 오염 버전"), Vector2(210, 144), Vector2(220, 20), func(): get_tree().change_scene_to_file("res://scenes/world3d.tscn"), true, false)
 	_btn(T("Tutorial (2D, learn the rules in 2 min)", "튜토리얼 (2D, 규칙 익히기 2분)"), Vector2(210, 172), Vector2(220, 18), _start_tutorial, true, false)
 	_btn(T("Free play (2D turn-based)", "자유 플레이 (2D 턴제)"), Vector2(210, 194), Vector2(220, 16), _start_free, true, false)
 	_btn(T("Language: English  (click for 한국어)", "언어: 한국어  (클릭: English)"), Vector2(210, 216), Vector2(220, 14), _toggle_lang, true, false)
