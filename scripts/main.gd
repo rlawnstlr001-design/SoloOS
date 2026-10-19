@@ -340,9 +340,10 @@ func _btn_at(p: Vector2) -> int:
 
 # ---------------- menu / tutorial ----------------
 func _build_menu() -> void:
-	_btn(T("TUTORIAL  (learn in 2 minutes)", "튜토리얼  (2분이면 배워요)"), Vector2(210, 150), Vector2(220, 26), _start_tutorial, true, true)
-	_btn(T("FREE PLAY", "자유 플레이"), Vector2(210, 184), Vector2(220, 20), _start_free, true, false)
-	_btn(T("Language: English  (click for 한국어)", "언어: 한국어  (클릭: English)"), Vector2(210, 212), Vector2(220, 14), _toggle_lang, true, false)
+	_btn(T("NEW: 3D REAL-TIME VERSION", "신규: 3D 실시간 버전"), Vector2(210, 140), Vector2(220, 26), func(): get_tree().change_scene_to_file("res://scenes/world3d.tscn"), true, true)
+	_btn(T("Tutorial (2D, learn the rules in 2 min)", "튜토리얼 (2D, 규칙 익히기 2분)"), Vector2(210, 172), Vector2(220, 18), _start_tutorial, true, false)
+	_btn(T("Free play (2D turn-based)", "자유 플레이 (2D 턴제)"), Vector2(210, 194), Vector2(220, 16), _start_free, true, false)
+	_btn(T("Language: English  (click for 한국어)", "언어: 한국어  (클릭: English)"), Vector2(210, 216), Vector2(220, 14), _toggle_lang, true, false)
 
 
 func _tut_allows(kind: String, arg: Variant = null) -> bool:
@@ -463,7 +464,7 @@ func _draw_menu() -> void:
 	draw_string(font, Vector2(0, 52), "DIMHOLD", HORIZONTAL_ALIGNMENT_CENTER, 640, 28, Color(1, 0.92, 0.7))
 	draw_string(font, Vector2(0, 72), T("Hold the light. Push back the dark.", "빛을 지켜라. 어둠을 밀어내라."), HORIZONTAL_ALIGNMENT_CENTER, 640, 11, Color(0.8, 0.8, 0.9))
 	_draw_ui()
-	draw_string(font, Vector2(0, 250), T("Prototype v0.2  -  first time? Start the tutorial.", "프로토타입 v0.2  -  처음이라면 튜토리얼부터 하세요."), HORIZONTAL_ALIGNMENT_CENTER, 640, 9, Color(0.7, 0.7, 0.8))
+	draw_string(font, Vector2(0, 252), T("Prototype v0.3  -  first time? The 2D tutorial teaches the same rules.", "프로토타입 v0.3  -  처음이라면 2D 튜토리얼로 규칙을 먼저 익히세요 (규칙은 같습니다)."), HORIZONTAL_ALIGNMENT_CENTER, 640, 9, Color(0.7, 0.7, 0.8))
 
 
 # ---------------- actions ----------------

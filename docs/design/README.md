@@ -11,6 +11,7 @@
 | [06_presentation.md](06_presentation.md) | 아트, UI, 오디오, 접근성, 현지화, 업적 50종 |
 | [07_production.md](07_production.md) | 아키텍처, 일정, 물량, 스코프 컷 라인, 리스크, 열린 질문 |
 | [08_sim_findings.md](08_sim_findings.md) | 규칙 시뮬레이션 결과, 발견된 문제와 수정안 (sim_proto/) |
+| [09_realtime_3d.md](09_realtime_3d.md) | **방향 전환 v0.3**: 실시간 + 로우폴리 3D, 근거와 반론 |
 
 규칙: 수치는 모두 "초기 가정치"다. 프로토타입과 헤드리스 시뮬레이션으로 조정하며,
 확정되지 않은 내용은 [가설] 또는 [미정]으로 표시한다.
