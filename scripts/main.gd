@@ -293,7 +293,7 @@ func _draw_ui() -> void:
 		elif i == hover_btn: bg = Color(0.32, 0.38, 0.55)
 		draw_rect(r, bg)
 		draw_rect(r, Color(0.5, 0.55, 0.7) if b["on"] else Color(0.25, 0.26, 0.32), false, 1.0)
-		draw_string(font, r.position + Vector2(4, r.size.y - 3), b["t"], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 9, Color(1, 1, 1) if b["on"] else Color(0.45, 0.45, 0.5))
+		draw_string(font, r.position + Vector2(4, r.size.y / 2 + 3.5), b["t"], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 9, Color(1, 1, 1) if b["on"] else Color(0.45, 0.45, 0.5))
 
 
 func _draw_tooltip() -> void:
@@ -340,10 +340,11 @@ func _btn_at(p: Vector2) -> int:
 
 # ---------------- menu / tutorial ----------------
 func _build_menu() -> void:
-	_btn(T("TOY 1: RANDOM DEFENSE (summon & merge)", "장난감 1: 랜덤 디펜스 (소환·합성)"), Vector2(210, 112), Vector2(220, 26), func(): get_tree().change_scene_to_file("res://scenes/toy_random.tscn"), true, true)
-	_btn(T("3D real-time blight version", "3D 실시간 오염 버전"), Vector2(210, 144), Vector2(220, 20), func(): get_tree().change_scene_to_file("res://scenes/world3d.tscn"), true, false)
-	_btn(T("Tutorial (2D, learn the rules in 2 min)", "튜토리얼 (2D, 규칙 익히기 2분)"), Vector2(210, 172), Vector2(220, 18), _start_tutorial, true, false)
-	_btn(T("Free play (2D turn-based)", "자유 플레이 (2D 턴제)"), Vector2(210, 194), Vector2(220, 16), _start_free, true, false)
+	_btn(T("TOY 2: DOKKAEBI DEFENSE (pool, recipes, synergy)", "장난감 2: 도깨비 디펜스 (풀·레시피·시너지)"), Vector2(210, 106), Vector2(220, 24), func(): get_tree().change_scene_to_file("res://scenes/toy2.tscn"), true, true)
+	_btn(T("Toy 1: random defense (summon & merge)", "장난감 1: 랜덤 디펜스 (소환·합성)"), Vector2(210, 134), Vector2(220, 18), func(): get_tree().change_scene_to_file("res://scenes/toy_random.tscn"), true, false)
+	_btn(T("3D real-time blight version", "3D 실시간 오염 버전"), Vector2(210, 156), Vector2(220, 16), func(): get_tree().change_scene_to_file("res://scenes/world3d.tscn"), true, false)
+	_btn(T("Tutorial (2D, learn the rules in 2 min)", "튜토리얼 (2D, 규칙 익히기 2분)"), Vector2(210, 176), Vector2(220, 16), _start_tutorial, true, false)
+	_btn(T("Free play (2D turn-based)", "자유 플레이 (2D 턴제)"), Vector2(210, 196), Vector2(220, 14), _start_free, true, false)
 	_btn(T("Language: English  (click for 한국어)", "언어: 한국어  (클릭: English)"), Vector2(210, 216), Vector2(220, 14), _toggle_lang, true, false)
 
 
@@ -458,9 +459,9 @@ func _draw_tutorial() -> void:
 
 func _draw_menu() -> void:
 	draw_rect(Rect2(0, 0, 640, 360), Color(0.06, 0.06, 0.09))
-	var c := Vector2(320, 110)
+	var c := Vector2(320, 90)
 	for k in range(7):
-		var pts := hex_pts(c + Vector2((k - 3) * 38.0, 0), 17.0)
+		var pts := hex_pts(c + Vector2((k - 3) * 24.0, 0), 10.0)
 		draw_colored_polygon(pts, Color(0.35, 0.18, 0.55, 0.9) if k < 3 else (Color(0.95, 0.75, 0.3) if k == 3 else Color(0.35, 0.62, 0.30)))
 	draw_string(font, Vector2(0, 52), "DIMHOLD", HORIZONTAL_ALIGNMENT_CENTER, 640, 28, Color(1, 0.92, 0.7))
 	draw_string(font, Vector2(0, 72), T("Hold the light. Push back the dark.", "빛을 지켜라. 어둠을 밀어내라."), HORIZONTAL_ALIGNMENT_CENTER, 640, 11, Color(0.8, 0.8, 0.9))
