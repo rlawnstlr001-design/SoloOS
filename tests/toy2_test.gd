@@ -1,5 +1,8 @@
 extends SceneTree
-# Headless balance check for toy 2 (pool cards + recipes + synergy): bots of different skill play full games.
+# Headless balance check for 도깨비 디펜스 (50 waves): bots of different skill play full games.
+# Policies: idle, skip (never picks cards), random (random cards), smart (cards + clustering + upgrades), noup (smart, never upgrades).
+# Design target: smart clears most runs, noup must fail in the later acts (upgrades are required).
+# Args: [hp_growth] [policy list, comma separated] [seeds]
 var f := 0
 
 func _merge_all(t) -> void:
@@ -44,14 +47,15 @@ func _play(policy: String, seed: int) -> Array:
 	seed(seed)
 	var steps := 0
 	var heroes := 0
-	while not t.over and steps < 60000:
+	while not t.over and steps < 120000:
 		steps += 1
 		if t.choosing: _pick(t, policy)
 		if policy != "idle":
 			while t.summon(): pass
 			_merge_all(t)
-			if policy == "smart":
+			if policy == "smart" or policy == "noup":
 				_cluster(t)
+			if policy == "smart":
 				var best := ""
 				var bestn := 0
 				for k in t.KINS:
@@ -61,24 +65,27 @@ func _play(policy: String, seed: int) -> Array:
 					if n > bestn: bestn = n; best = k
 				if best != "" and t.gold >= t.upgrade_cost(best) + t.cost(): t.upgrade(best)
 		t.step(0.05)
-	var r := [t.won, t.wave, t.kills, t.lose_reason, t.discovered.size(), t.relics.size(), t.pool.size()]
+	var r := [t.won, t.wave, t.kills, t.lose_reason, t.discovered.size(), t.relics.size(), t.pool.size(), t.casts]
 	t.queue_free()
 	return r
 
 func _process(_d: float) -> bool:
 	f += 1
 	if f < 2: return false
-	var pols := ["idle", "skip", "random", "smart"]
-	if OS.get_cmdline_user_args().size() > 1: pols = ["skip", "random", "smart"]
+	var a := OS.get_cmdline_user_args()
+	var pols := ["idle", "skip", "random", "smart", "noup"]
+	if a.size() > 1: pols = a[1].split(",")
+	var seeds := 8 if a.size() < 3 else int(a[2])
 	for pol in pols:
-		var wins := 0; var waves := 0.0; var reasons := {}; var heroes := 0.0
-		for s in range(8):
+		var wins := 0; var waves := 0.0; var reasons := {}; var heroes := 0.0; var casts := 0.0
+		for s in range(seeds):
 			var r := _play(pol, 100 + s)
 			if r[0]: wins += 1
 			waves += r[1]
 			heroes += r[4]
+			casts += r[7]
 			reasons[r[3]] = reasons.get(r[3], 0) + 1
-		print("%-7s wins %d/8  avg wave %.1f  heroes found %.1f  %s" % [pol, wins, waves / 8.0, heroes / 8.0, str(reasons)])
+		print("%-7s wins %d/%d  avg wave %.1f  heroes %.1f  casts %.0f  %s" % [pol, wins, seeds, waves / seeds, heroes / seeds, casts / seeds, str(reasons)])
 	print("TOY2 BALANCE DONE")
 	quit(0)
 	return true

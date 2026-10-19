@@ -340,7 +340,7 @@ func _btn_at(p: Vector2) -> int:
 
 # ---------------- menu / tutorial ----------------
 func _build_menu() -> void:
-	_btn(T("TOY 2: DOKKAEBI DEFENSE (pool, recipes, synergy)", "장난감 2: 도깨비 디펜스 (풀·레시피·시너지)"), Vector2(210, 106), Vector2(220, 24), func(): get_tree().change_scene_to_file("res://scenes/toy2.tscn"), true, true)
+	_btn(T("DOKKAEBI DEFENSE (50 waves, folklore)", "도깨비 디펜스 (50웨이브 · 설화)"), Vector2(210, 106), Vector2(220, 24), func(): get_tree().change_scene_to_file("res://scenes/toy2.tscn"), true, true)
 	_btn(T("Toy 1: random defense (summon & merge)", "장난감 1: 랜덤 디펜스 (소환·합성)"), Vector2(210, 134), Vector2(220, 18), func(): get_tree().change_scene_to_file("res://scenes/toy_random.tscn"), true, false)
 	_btn(T("3D real-time blight version", "3D 실시간 오염 버전"), Vector2(210, 156), Vector2(220, 16), func(): get_tree().change_scene_to_file("res://scenes/world3d.tscn"), true, false)
 	_btn(T("Tutorial (2D, learn the rules in 2 min)", "튜토리얼 (2D, 규칙 익히기 2분)"), Vector2(210, 176), Vector2(220, 16), _start_tutorial, true, false)
