@@ -3,6 +3,7 @@ extends Node2D
 # Keys: Space=End Day, F=toggle forecast, R=restart, 1-6=variant set + restart, Esc=cancel selection.
 
 const GS := preload("res://sim/game_state.gd")
+const TX := preload("res://scripts/texts.gd")
 
 const VSETS := [
 	["murk"], ["murk", "spore"], ["rime", "spore"], ["rust", "murk"], ["rime", "hollow"],
@@ -48,6 +49,8 @@ var tut_b := -1
 var tut_src: Array = []
 var flash: Dictionary = {}   # tile -> "worse" | "better" | "lost"
 var flash_t := 0.0
+var show_codex := false
+var mouse := Vector2.ZERO
 
 const TUT := [
 	{"id": "intro", "next": true, "en": "Welcome! GOAL: keep the center hex H alive for 12 days. Everything else is a tool for that.", "kr": "환영합니다! 목표: 12일 동안 가운데 '본'(본진)을 지키는 것. 나머지는 전부 그 수단입니다."},
@@ -102,6 +105,8 @@ func _ready() -> void:
 	var sf := SystemFont.new()
 	sf.font_names = PackedStringArray(["Malgun Gothic", "Noto Sans CJK KR", "Apple SD Gothic Neo", "NanumGothic", "WenQuanYi Zen Hei", "Unifont", "sans-serif"])
 	sf.fallbacks = [ThemeDB.fallback_font]
+	sf.multichannel_signed_distance_field = true
+	sf.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	font = sf
 	g = GS.new()
 	g.setup(1, VSETS[0])
@@ -199,36 +204,37 @@ func _build_ui() -> void:
 	var resist_txt := ""
 	for c in GS.CLASSES:
 		if g.resist[c] > 0: resist_txt += T(" RESIST-%s(%d)", " 내성-%s(%d)") % [N(c), g.resist[c]]
-	_text(Vector2(x, y + 8), 240, T("Day %d/%d   Rifts %d   Sealed %d\nM %d   L %d   Folk %d   LP %d%s\nLit %d   Ember~%d", "%d/%d일차   균열 %d   봉인 %d\n자재 %d   빛 %d   주민 %d   행동력 %d%s\n점등 %d칸   불씨~%d") % [g.day, g.days, g.rift.size(), g.sealed, g.M, g.L, g.folk, g.lp, resist_txt, g.lit_count(), int(g.ember())], Color(1, 1, 1), 9)
+	_text(Vector2(x, y + 8), 240, T("Day %d/%d   Rifts %d   Sealed %d\nM %d   L %d   Folk %d   LP %d%s\nLit %d   Ember~%d", "%d/%d일차   균열 %d   봉인 %d\n자재 %d   빛 %d   주민 %d   행동력 %d%s\n점등 %d칸   불씨~%d") % [g.day, g.days, g.rift.size(), g.sealed, g.M, g.L, g.folk, g.lp, resist_txt, g.lit_count(), int(g.ember())], Color(1, 1, 1), 10)
 	y += 40
-	_text(Vector2(x, y + 8), 240, _hint() if scr != "tutorial" else T("Tutorial: follow the glowing step.", "튜토리얼: 반짝이는 단계를 따라 하세요."), Color(1, 0.9, 0.4), 9)
+	_text(Vector2(x, y + 8), 240, _hint() if scr != "tutorial" else T("Tutorial: follow the glowing step.", "튜토리얼: 반짝이는 단계를 따라 하세요."), Color(1, 0.9, 0.4), 10)
 	y += 30
 	if not g.over:
 		for k in range(g.cards.size()):
-			_btn(T("Card %d: %s", "카드 %d: %s") % [k + 1, N(g.cards[k])] + (T("  (used)", "  (사용됨)") if placed_today else ""), Vector2(x, y), Vector2(236, 13), _on_card.bind(k), not placed_today, mode == "card" and card_idx == k)
+			_btn(T("Card %d: %s", "카드 %d: %s") % [k + 1, N(g.cards[k])] + (T("  (used)", "  (사용됨)") if placed_today else ""), Vector2(x, y), Vector2(236, 13), _on_card.bind(k), not placed_today, mode == "card" and card_idx == k, T("Expand your land with this tile (once a day).\n\n", "이 지형 타일로 영토를 한 칸 넓힙니다 (하루 1번).\n\n") + (TX.TERR_KO if ko else TX.TERR_EN)[g.cards[k]])
 			y += 15
 		y += 3
 		var col := 0
 		for n in GS.BUILD_ORDER:
 			var c: Array = GS.STRUCT[n]
-			_btn(T("%s %dM %dL", "%s 자재%d 빛%d") % [N(n), c[0], c[1]], Vector2(x + col * 120.0, y), Vector2(116, 13), _on_build.bind(n), g.M >= c[0] and g.L >= c[1] and g.lp >= c[2], mode == "build" and build_name == n)
+			_btn(T("%s %dM %dL", "%s 자재%d 빛%d") % [N(n), c[0], c[1]], Vector2(x + col * 120.0, y), Vector2(116, 13), _on_build.bind(n), g.M >= c[0] and g.L >= c[1] and g.lp >= c[2], mode == "build" and build_name == n, stip(n))
 			col += 1
 			if col == 2:
 				col = 0; y += 15
 		if col == 1: y += 15
 		y += 3
-		_btn(T("Burst (3L 2LP)", "정화 (빛3 행동2)"), Vector2(x, y), Vector2(116, 13), _on_burst, selected >= 0 and g.can_burst(selected), false)
-		_btn(T("Pyre fire (3L 1LP)", "화염 발사 (빛3 행동1)"), Vector2(x + 120, y), Vector2(116, 13), _on_pyre, selected >= 0 and g.can_pyre(selected), false)
+		_btn(T("Burst (3L 2LP)", "정화 (빛3 행동2)"), Vector2(x, y), Vector2(116, 13), _on_burst, selected >= 0 and g.can_burst(selected), false, T("Select one of your Beacons first.\n\n", "먼저 지도에서 내 봉화를 클릭해 선택하세요.\n\n") + sdesc("beacon")[2])
+		_btn(T("Pyre fire (3L 1LP)", "화염 발사 (빛3 행동1)"), Vector2(x + 120, y), Vector2(116, 13), _on_pyre, selected >= 0 and g.can_pyre(selected), false, T("Select one of your Pyres first.\n\n", "먼저 지도에서 내 화염탑을 클릭해 선택하세요.\n\n") + sdesc("pyre")[2])
 		y += 15
-		_btn(T("Seal Rift (5L 2LP)", "균열 봉인 (빛5 행동2)"), Vector2(x, y), Vector2(116, 13), _on_seal, selected >= 0 and not g.seal_targets(selected).is_empty(), false)
-		_btn(T("Forecast: %s (F)", "예고: %s (F)") % [T("ON", "켜짐") if show_fc else T("off", "꺼짐")], Vector2(x + 120, y), Vector2(116, 13), _toggle_fc, true, show_fc)
+		_btn(T("Seal Rift (5L 2LP)", "균열 봉인 (빛5 행동2)"), Vector2(x, y), Vector2(116, 13), _on_seal, selected >= 0 and not g.seal_targets(selected).is_empty(), false, T("Select a Sunwell near a Rift first.\n\n", "먼저 균열 근처의 태양우물을 선택하세요.\n\n") + sdesc("sunwell")[2])
+		_btn(T("Forecast: %s (F)", "예고: %s (F)") % [T("ON", "켜짐") if show_fc else T("off", "꺼짐")], Vector2(x + 120, y), Vector2(116, 13), _toggle_fc, true, show_fc, T("Shows what happens tonight: red triangle = this hex will be eaten, green check = safe.", "오늘 밤 결과를 미리 보여줍니다: 빨간 삼각형 = 먹힐 칸, 초록 체크 = 안전."))
 		y += 18
-	_btn(T("END DAY (Space)", "하루 끝내기 (Space)") if not g.over else T("NEW GAME (R)", "새 게임 (R)"), Vector2(x, y), Vector2(236, 17), _end_day if not g.over else _new_game, true, false)
+	_btn(T("END DAY (Space)", "하루 끝내기 (Space)") if not g.over else T("NEW GAME (R)", "새 게임 (R)"), Vector2(x, y), Vector2(236, 17), _end_day if not g.over else _new_game, true, false, T("Night falls: blight spreads, buildings produce, next day begins.", "밤이 됩니다: 오염이 번지고, 건물이 생산하고, 다음 날이 시작됩니다."))
 	y += 21
-	_btn(T("Variant: %s (1-6)", "오염: %s (1-6)") % VN(vset_idx), Vector2(x, y), Vector2(116, 13), _next_vset, true, false)
-	_btn(T("HELP (H)", "도움말 (H)"), Vector2(x + 120, y), Vector2(116, 13), _toggle_help, true, show_help)
+	_btn(T("Blight: %s", "오염: %s") % VN(vset_idx), Vector2(x, y), Vector2(96, 13), _next_vset, true, false, T("Change the blight type and restart (keys 1-6).", "오염 종류를 바꾸고 새로 시작 (숫자키 1-6)."))
+	_btn(T("Help (H)", "도움말 (H)"), Vector2(x + 99, y), Vector2(66, 13), _toggle_help, true, show_help)
+	_btn(T("Codex (C)", "도감 (C)"), Vector2(x + 168, y), Vector2(68, 13), _toggle_codex, true, show_codex, T("What every building and blight does.", "모든 건물과 오염의 역할 설명."))
 	y += 18
-	_text(Vector2(x, y + 8), 240, _info_text(), Color(0.85, 0.85, 0.9), 8)
+	_text(Vector2(x, y + 8), 240, _info_text(), Color(0.85, 0.85, 0.9), 9)
 	if scr == "tutorial":
 		var st: Dictionary = TUT[tut]
 		if st["next"]:
@@ -236,8 +242,22 @@ func _build_ui() -> void:
 		_btn(T("Skip tutorial", "튜토리얼 건너뛰기"), Vector2(392, 344), Vector2(120, 12), _start_free, true, false)
 
 
-func _btn(t: String, p: Vector2, sz: Vector2, cb: Callable, on: bool, act: bool) -> void:
-	btns.append({"r": Rect2(p, sz), "t": t, "cb": cb, "on": on, "act": act})
+func _btn(t: String, p: Vector2, sz: Vector2, cb: Callable, on: bool, act: bool, tip: String = "") -> void:
+	btns.append({"r": Rect2(p, sz), "t": t, "cb": cb, "on": on, "act": act, "tip": tip})
+
+
+func sdesc(n: String) -> Array:
+	return (TX.STRUCT_KO if ko else TX.STRUCT_EN).get(n, [n, "", ""])
+
+
+func stip(n: String) -> String:
+	var d: Array = sdesc(n)
+	var c: Array = GS.STRUCT[n]
+	return "%s\n%s\n\n%s\n\n%s" % [d[0], d[1], d[2], T("Cost: %d materials, %d light, %d action(s)", "비용: 자재 %d, 빛 %d, 행동 %d") % [c[0], c[1], c[2]]]
+
+
+func vdesc(v: String) -> Array:
+	return (TX.VAR_KO if ko else TX.VAR_EN).get(v, [v, ""])
 
 
 func _text(p: Vector2, w: float, t: String, c: Color, fs: int) -> void:
@@ -251,6 +271,11 @@ func _info_text() -> String:
 		var pr: Array = fc[2]; var gd: Array = fc[3]; var parts: Array = fc[4]
 		t += "\n" + T("Tile %s: %s%s%s\n", "칸 %s: %s%s%s\n") % [str(GS.COORDS[i]), N(g.terrain[i]), "  [%s]" % N(g.structs[i]) if g.structs[i] != "" else "", T("  SCAR", "  파괴됨") if g.scar[i] else ""]
 		t += T("lit=%s  blight=%d %s\nPressure %d vs Guard %d (Light %d, Ward %d)\nNext dusk: %d", "내 땅=%s  오염=%d %s\n압력 %d vs 방어 %d (빛 %d, 방벽 %d)\n오늘 밤 이후: %d") % [T(str(g.lit[i]), "예" if g.lit[i] else "아니오"), g.inten[i], N(g.var_[i]), pr[i], gd[i], parts[i][0], parts[i][2], fc[0][i]]
+	if i >= 0:
+		if g.structs[i] != "":
+			t += "\n" + sdesc(g.structs[i])[0] + ": " + sdesc(g.structs[i])[1]
+		if g.inten[i] > 0 and g.var_[i] != "":
+			t += "\n" + vdesc(g.var_[i])[0] + ": " + vdesc(g.var_[i])[1]
 	if g.over:
 		t += "\n\n%s  %s %d" % [T("VICTORY", "승리") if g.won else T("DEFEAT", "패배"), T("Ember", "불씨"), int(g.ember())]
 	return t
@@ -268,7 +293,43 @@ func _draw_ui() -> void:
 		elif i == hover_btn: bg = Color(0.32, 0.38, 0.55)
 		draw_rect(r, bg)
 		draw_rect(r, Color(0.5, 0.55, 0.7) if b["on"] else Color(0.25, 0.26, 0.32), false, 1.0)
-		draw_string(font, r.position + Vector2(4, r.size.y - 3), b["t"], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 8, Color(1, 1, 1) if b["on"] else Color(0.45, 0.45, 0.5))
+		draw_string(font, r.position + Vector2(4, r.size.y - 3), b["t"], HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 6, 9, Color(1, 1, 1) if b["on"] else Color(0.45, 0.45, 0.5))
+
+
+func _draw_tooltip() -> void:
+	if hover_btn < 0 or hover_btn >= btns.size(): return
+	var tip: String = btns[hover_btn].get("tip", "")
+	if tip == "": return
+	var w := 240.0
+	var sz := font.get_multiline_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, w - 16, 10)
+	var h := sz.y + 16
+	var r: Rect2 = btns[hover_btn]["r"]
+	var y := clampf(r.position.y - 8, 4, 356 - h)
+	var box := Rect2(r.position.x - w - 8, y, w, h)
+	draw_rect(box, Color(0.05, 0.06, 0.10, 0.97))
+	draw_rect(box, Color(1, 0.85, 0.4), false, 1.5)
+	draw_multiline_string(font, box.position + Vector2(8, 16), tip, HORIZONTAL_ALIGNMENT_LEFT, w - 16, 10, -1, Color(0.95, 0.95, 1))
+
+
+func _draw_codex() -> void:
+	draw_rect(Rect2(8, 8, 376, 344), Color(0.03, 0.03, 0.07, 0.97))
+	draw_rect(Rect2(8, 8, 376, 344), Color(1, 0.85, 0.4), false, 1.5)
+	draw_string(font, Vector2(18, 26), T("CODEX - click anywhere to close", "도감 - 아무 곳이나 클릭하면 닫힘"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 0.9, 0.5))
+	var y := 44.0
+	for n in ["hearth", "lantern", "brazier", "beacon", "palisade", "rampart", "pyre", "sunwell", "camp", "cottage", "press"]:
+		var d: Array = sdesc(n)
+		draw_string(font, Vector2(18, y), "%s" % d[0], HORIZONTAL_ALIGNMENT_LEFT, 70, 10, Color(1, 0.85, 0.5))
+		draw_string(font, Vector2(90, y), d[1], HORIZONTAL_ALIGNMENT_LEFT, 290, 10, Color(0.92, 0.92, 0.96))
+		y += 15
+	y += 6
+	draw_string(font, Vector2(18, y), T("BLIGHT TYPES", "오염 종류"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.9, 0.5))
+	y += 14
+	for v in ["murk", "rime", "spore", "rust", "hollow"]:
+		var vd: Array = vdesc(v)
+		var vc: Color = V_COLOR[v]
+		draw_rect(Rect2(18, y - 8, 8, 8), vc.lightened(0.2))
+		draw_multiline_string(font, Vector2(30, y), vd[0] + ": " + vd[1], HORIZONTAL_ALIGNMENT_LEFT, 346, 9, 2, Color(0.9, 0.9, 0.95))
+		y += 22
 
 
 func _btn_at(p: Vector2) -> int:
@@ -436,6 +497,12 @@ func _on_seal() -> void:
 	g.seal(selected, t[0]); msg = T("Rift sealed!", "균열 봉인 완료!"); _refresh()
 
 
+func _toggle_codex() -> void:
+	show_codex = not show_codex
+	show_help = false
+	_refresh()
+
+
 func _toggle_help() -> void:
 	show_help = not show_help
 	queue_redraw()
@@ -492,13 +559,15 @@ func _end_day() -> void:
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventMouseMotion:
+		mouse = e.position
 		var h := pick(e.position)
 		var hb := _btn_at(e.position)
 		if h != hover or hb != hover_btn:
 			hover = h; hover_btn = hb; _build_ui(); queue_redraw()
 	elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
-		if show_help:
-			show_help = false; queue_redraw(); return
+		if show_help or show_codex:
+			if _btn_at(e.position) < 0:
+				show_help = false; show_codex = false; _refresh(); return
 		var bi := _btn_at(e.position)
 		if bi >= 0:
 			if btns[bi]["on"]: btns[bi]["cb"].call()
@@ -536,6 +605,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_M: _open_menu()
 			KEY_F: _toggle_fc()
 			KEY_H: _toggle_help()
+			KEY_C: _toggle_codex()
 			KEY_R: _start_free()
 			KEY_ESCAPE: mode = ""; card_idx = -1; build_name = ""; selected = -1; _refresh()
 			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
@@ -605,6 +675,8 @@ func _draw() -> void:
 			draw_polyline(pts, Color(fcol.r, fcol.g, fcol.b, minf(1.0, flash_t)), 3.0)
 	if scr == "tutorial": _draw_tutorial()
 	_draw_ui()
+	if show_codex: _draw_codex()
+	_draw_tooltip()
 	if show_help:
 		var lines: Array = [
 			T("HOW TO PLAY (click anywhere to close, H to reopen)", "플레이 방법 (아무 곳이나 클릭하면 닫힘, H로 다시 열기)"),
@@ -620,7 +692,7 @@ func _draw() -> void:
 			T("   Palisade/Rampart give walls. Put them where purple is coming.", "   목책/성벽=방벽. 보라색이 다가오는 쪽에 지으세요."),
 			T("3) Press Space: night falls, blight spreads, next day.", "3) Space(하루 끝내기): 밤이 되어 오염이 번지고 다음 날로."),
 			"",
-			T("TIPS: Brazier burns Rime/Spore.", "팁: 화로는 서리/포자 오염을 태웁니다."),
+			T("TIP: hover any button to see what it does. Codex (C) lists everything.", "팁: 버튼에 마우스를 올리면 설명이 나옵니다. 도감(C)에 전체 정리."),
 			T("Beacon (Bc): select it, then press Burst to cleanse nearby blight.", "봉화(봉): 선택 후 '정화' 버튼으로 주변 오염 제거."),
 		]
 		draw_rect(Rect2(10, 40, 380, 280), Color(0.02, 0.02, 0.05, 0.93))

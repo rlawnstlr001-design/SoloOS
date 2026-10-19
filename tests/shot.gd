@@ -32,10 +32,18 @@ func _process(_d: float) -> bool:
 		20: m._tut_next(); m._on_card(0); _click(m.g.frontier()[0])
 		22: m._end_day()
 		24: _save("6_tut_after_night")
-		25: quit(0)
+		25:
+			m._start_free()
+			for k in range(m.btns.size()):
+				if String(m.btns[k]["t"]).begins_with(m.N("beacon")): m.hover_btn = k
+			m.queue_redraw()
+		27: _save("7_tooltip")
+		28: m._toggle_codex()
+		30: _save("8_codex")
+		31: quit(0)
 	return false
 
 func _save(n: String) -> void:
 	var img := root.get_viewport().get_texture().get_image()
 	img.save_png("%s/%s.png" % [out, n])
-	print("saved ", n)
+	print("saved ", n, " ", img.get_size())
