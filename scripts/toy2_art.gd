@@ -476,68 +476,12 @@ func make_unit(t: String, tier: int, kin_c: Color, tier_c: Color, hero: bool) ->
 	rig.name = "rig"
 	rig.position = Vector3(0, 0.08, 0)
 	n.add_child(rig)
-	match t:
-		"dokkaebi": _m_dokkaebi(rig, false)
-		"dokkaebi_king": _m_dokkaebi(rig, true)
-		"gungsa": _m_gungsa(rig, false)
-		"chakho": _m_gungsa(rig, true)
-		"posu": _m_posu(rig)
-		"mudang": _m_mudang(rig)
-		"mulgwisin": _m_mulgwisin(rig)
-		"haetae": _m_haetae(rig)
-		"gumiho": _m_gumiho(rig, false)
-		"cheonnyeon": _m_gumiho(rig, true)
-		"jeoseung": _m_jeoseung(rig)
-		"yeomra": _m_yeomra(rig)
-		"dokkaebibul": _m_dokkaebibul(rig)
-		"ssireum": _m_ssireum(rig)
-		"bihyeong":
-			_human(rig, {"robe": Color(0.45, 0.3, 0.6), "sash": GOLD, "hat": "feather", "hat_c": Color(0.3, 0.2, 0.4), "weapon": "talisman"})
-			_ghost_wisps(rig, Color(0.6, 0.5, 0.9), 2)
-		"gwigyo":
-			_human(rig, {"robe": Color(0.3, 0.15, 0.45), "sash": GOLD, "hat": "feather", "hat_c": GOLD, "weapon": "talisman", "cape": Color(0.15, 0.1, 0.2), "scale": 1.1})
-			_ghost_wisps(rig, Color(0.6, 0.5, 0.9), 4)
-		"samjogo": _m_samjogo(rig)
-		"hyeonmu": _m_hyeonmu(rig)
-		"hwarang": _human(rig, {"robe": Color(0.75, 0.3, 0.25), "sash": GOLD, "hat": "feather", "hat_c": Color(0.2, 0.18, 0.15), "weapon": "sword"})
-		"seungbyeong": _human(rig, {"robe": Color(0.55, 0.53, 0.5), "top": Color(0.65, 0.4, 0.25), "hat": "satgat", "weapon": "staff"})
-		"agijangsu": _human(rig, {"robe": Color(0.95, 0.95, 0.9), "sash": Color(0.85, 0.2, 0.2), "hat": "headband", "hat_c": Color(0.85, 0.2, 0.2), "weapon": "sword", "wings": true, "scale": 0.9})
-		"cheoyong": _human(rig, {"robe": Color(0.2, 0.45, 0.6), "sash": Color(0.85, 0.2, 0.2), "face": "mask_red", "hat": "samo", "weapon": "fan"})
-		"cheoyongrang": _human(rig, {"robe": Color(0.15, 0.3, 0.55), "sash": GOLD, "face": "mask_red", "hat": "samo", "weapon": "fan", "cape": Color(0.75, 0.15, 0.15), "scale": 1.1})
-		"pansu": _human(rig, {"robe": Color(0.82, 0.8, 0.72), "sash": Color(0.3, 0.3, 0.6), "hat": "gat", "weapon": "drum"})
-		"bari": _human(rig, {"robe": Color(0.25, 0.55, 0.45), "top": Color(0.95, 0.85, 0.3), "sash": Color(0.85, 0.2, 0.3), "hat": "jokduri", "weapon": "flower", "cape": Color(0.85, 0.25, 0.3)})
-		"jeonuchi": _human(rig, {"robe": Color(0.85, 0.9, 0.95), "sash": Color(0.3, 0.6, 0.8), "hat": "gat", "weapon": "fan", "beard": true})
-		"honggildong": _human(rig, {"robe": Color(0.15, 0.15, 0.2), "sash": Color(0.6, 0.15, 0.15), "face": "masked", "hat": "gat", "weapon": "sword"})
-		"hwalbin": _human(rig, {"robe": Color(0.12, 0.12, 0.18), "sash": GOLD, "face": "masked", "hat": "headband", "hat_c": Color(0.85, 0.2, 0.2), "weapon": "sword", "cape": Color(0.6, 0.12, 0.12), "scale": 1.1})
-		"baksi": _human(rig, {"robe": Color(0.6, 0.25, 0.35), "hat": "hood", "hat_c": Color(0.25, 0.5, 0.4), "weapon": "talisman"})
-		"mago": _human(rig, {"robe": Color(0.5, 0.4, 0.3), "top": Color(0.6, 0.5, 0.38), "hat": "bun", "hat_c": Color(0.92, 0.92, 0.9), "weapon": "rock", "scale": 1.2})
-		"panokseon": _m_boat(rig, false)
-		"geobukseon": _m_boat(rig, true)
-		"tongjesa": _human(rig, {"robe": Color(0.55, 0.12, 0.12), "top": Color(0.3, 0.28, 0.25), "sash": GOLD, "hat": "helmet", "weapon": "sword", "cape": Color(0.75, 0.1, 0.1), "scale": 1.1})
-		"yongwang": _human(rig, {"robe": Color(0.2, 0.5, 0.45), "sash": GOLD, "hat": "myeon", "hat_c": Color(0.12, 0.25, 0.3), "weapon": "talisman", "beard": true})
-		"hogukryong": _m_hogukryong(rig)
-		"yeonggam": _m_yeonggam(rig)
-		"cheongryong": _m_cheongryong(rig, false)
-		"baekho": _m_baekho(rig)
-		"jujak": _m_jujak(rig)
-		"girin": _m_girin(rig)
-		"bonghwang": _m_bonghwang(rig)
-		"uibyeong": _human(rig, {"robe": Color(0.92, 0.9, 0.84), "hat": "headband", "hat_c": Color(0.95, 0.95, 0.92), "weapon": "spear"})
-		"singijeon": _m_singijeon(rig)
-		"gaema": _m_gaema(rig)
-		"uinyeo": _human(rig, {"robe": Color(0.3, 0.45, 0.55), "top": Color(0.9, 0.85, 0.75), "hat": "bun", "weapon": "book", "w_c": Color(0.5, 0.3, 0.2)})
-		"samsin": _human(rig, {"robe": Color(0.95, 0.95, 0.92), "top": Color(0.85, 0.85, 0.82), "hat": "bun", "hat_c": Color(0.92, 0.92, 0.9), "weapon": "flower", "scale": 0.95})
-		"jacheongbi": _human(rig, {"robe": Color(0.35, 0.55, 0.35), "top": Color(0.9, 0.8, 0.4), "hat": "gat", "weapon": "flower"})
-		"sasin":
-			_m_cheongryong(rig, true)
-			var halo2 := part(rig, torus(0.65, 0.75), fx_mat(Color(1, 0.6, 0.3), 0.5), Vector3(0, 0.1, 0))
-			halo2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		"seungjang": _human(rig, {"robe": Color(0.5, 0.48, 0.45), "top": Color(0.7, 0.35, 0.2), "sash": GOLD, "hat": "satgat", "weapon": "staff", "cape": Color(0.6, 0.3, 0.15), "scale": 1.1})
-	if CHIBI.has(t):
-		var cont: Node3D = rig
-		if rig.get_child_count() == 1 and not (rig.get_child(0) is MeshInstance3D): cont = rig.get_child(0)
-		_chibi(cont, Vector3(0, 1.02, 0), 0.9, 1.32)
-	style_tree(rig)
+	var custom := load_model("units", t)
+	if custom != null:
+		_style_model(custom)
+		rig.add_child(_fit_model(custom, 1.65 if hero else 1.45))
+	else:
+		_build_unit(rig, t)
 	if hero:
 		var halo := part(n, torus(0.26, 0.32), mat(GOLD, GOLD, 3.0), Vector3(0, 1.95, 0))
 		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -763,45 +707,12 @@ func make_enemy(look: String, boss: bool) -> Dictionary:
 	rig.name = "rig"
 	n.add_child(rig)
 	var segs: Array = []
-	match look:
-		"imugi": segs = _imugi(rig)
-		"bulgasari": _bulgasari(rig)
-		"centipede": segs = _e_centipede(rig)
-		"egg": _egg_ghost(rig)
-		"wisp": _will_o_wisp(rig)
-		"shadow": _shadow(rig)
-		"gaekgwi": _e_gaekgwi(rig)
-		"rat": _e_rat(rig)
-		"yagwang": _e_yagwang(rig)
-		"fox": _quad(rig, {"c": Color(0.9, 0.55, 0.22), "len": 1.25})
-		"changgwi": _e_changgwi(rig)
-		"brute": _e_brute(rig)
-		"tiger": _quad(rig, {"c": Color(0.92, 0.6, 0.2), "len": 1.4, "stripes": true, "eye": Color(1, 0.9, 0.2)})
-		"snake": _serpent(rig, Color(0.2, 0.3, 0.25), 6, 0.2)
-		"isimi": _serpent(rig, Color(0.25, 0.45, 0.5), 5, 0.17)
-		"swarm": _e_swarm(rig)
-		"onelegged": _e_onelegged(rig)
-		"yogwi": _e_yogwi(rig)
-		"daegwi": _e_daegwi(rig)
-		"sogwi": _e_sogwi(rig)
-		"agwi": _e_agwi(rig)
-		"gildal": _e_gildal(rig)
-		"jigwi": _e_jigwi(rig)
-		"yeoksin": _e_yeoksin(rig)
-		"yeongno": _e_yeongno(rig)
-		"foxsister": _e_foxsister(rig)
-		"segment": _e_segment(rig)
-		"daejeok": _e_daejeok(rig)
-		"songaksi": _e_songaksi(rig)
-		"mongdal": _e_mongdal(rig)
-		"haeryong": _serpent(rig, Color(0.2, 0.45, 0.8), 6, 0.24)
-		"judungi": _e_judungi(rig)
-		"gangcheol": segs = _e_gangcheol(rig)
-		"dokryong": segs = _e_dokryong(rig)
-		"goldpig": _e_goldpig(rig)
-		_: _jabgwi(rig)
-	style_tree(rig)
-	for sg in segs: style_tree(sg)
+	var custom := load_model("yokai", look)
+	if custom != null:
+		_style_model(custom)
+		rig.add_child(_fit_model(custom, 2.2 if boss else 1.1))
+	else:
+		segs = _build_enemy(rig, look)
 	var flash := part(n, sph(0.5), fx_mat(Color(1, 1, 1), 0.55), Vector3(0, 0.5, 0), Vector3.ZERO, Vector3.ONE * (2.0 if boss else 1.0))
 	flash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	flash.visible = false
@@ -1249,6 +1160,215 @@ func _e_daejeok(r: Node3D) -> void:
 		for sx in [-1.0, 1.0]: part(r, sph(0.04), mat(Color(1, 0.2, 0.2), Color(1, 0.2, 0.2), 3.0), hp + Vector3(sx * 0.08, 0.05, 0.2))
 		part(r, cyl(0.0, 0.05, 0.2, 5), mat(Color(0.9, 0.85, 0.7)), hp + Vector3(0, 0.25, 0))
 	for sx in [-1.0, 1.0]: part(r, cyl(0.12, 0.16, 0.55, 6), mat(c.darkened(0.2)), Vector3(sx * 0.35, 0.25, 0))
+
+
+func _build_unit(rig: Node3D, t: String) -> void:
+	match t:
+		"dokkaebi": _m_dokkaebi(rig, false)
+		"dokkaebi_king": _m_dokkaebi(rig, true)
+		"gungsa": _m_gungsa(rig, false)
+		"chakho": _m_gungsa(rig, true)
+		"posu": _m_posu(rig)
+		"mudang": _m_mudang(rig)
+		"mulgwisin": _m_mulgwisin(rig)
+		"haetae": _m_haetae(rig)
+		"gumiho": _m_gumiho(rig, false)
+		"cheonnyeon": _m_gumiho(rig, true)
+		"jeoseung": _m_jeoseung(rig)
+		"yeomra": _m_yeomra(rig)
+		"dokkaebibul": _m_dokkaebibul(rig)
+		"ssireum": _m_ssireum(rig)
+		"bihyeong":
+			_human(rig, {"robe": Color(0.45, 0.3, 0.6), "sash": GOLD, "hat": "feather", "hat_c": Color(0.3, 0.2, 0.4), "weapon": "talisman"})
+			_ghost_wisps(rig, Color(0.6, 0.5, 0.9), 2)
+		"gwigyo":
+			_human(rig, {"robe": Color(0.3, 0.15, 0.45), "sash": GOLD, "hat": "feather", "hat_c": GOLD, "weapon": "talisman", "cape": Color(0.15, 0.1, 0.2), "scale": 1.1})
+			_ghost_wisps(rig, Color(0.6, 0.5, 0.9), 4)
+		"samjogo": _m_samjogo(rig)
+		"hyeonmu": _m_hyeonmu(rig)
+		"hwarang": _human(rig, {"robe": Color(0.75, 0.3, 0.25), "sash": GOLD, "hat": "feather", "hat_c": Color(0.2, 0.18, 0.15), "weapon": "sword"})
+		"seungbyeong": _human(rig, {"robe": Color(0.55, 0.53, 0.5), "top": Color(0.65, 0.4, 0.25), "hat": "satgat", "weapon": "staff"})
+		"agijangsu": _human(rig, {"robe": Color(0.95, 0.95, 0.9), "sash": Color(0.85, 0.2, 0.2), "hat": "headband", "hat_c": Color(0.85, 0.2, 0.2), "weapon": "sword", "wings": true, "scale": 0.9})
+		"cheoyong": _human(rig, {"robe": Color(0.2, 0.45, 0.6), "sash": Color(0.85, 0.2, 0.2), "face": "mask_red", "hat": "samo", "weapon": "fan"})
+		"cheoyongrang": _human(rig, {"robe": Color(0.15, 0.3, 0.55), "sash": GOLD, "face": "mask_red", "hat": "samo", "weapon": "fan", "cape": Color(0.75, 0.15, 0.15), "scale": 1.1})
+		"pansu": _human(rig, {"robe": Color(0.82, 0.8, 0.72), "sash": Color(0.3, 0.3, 0.6), "hat": "gat", "weapon": "drum"})
+		"bari": _human(rig, {"robe": Color(0.25, 0.55, 0.45), "top": Color(0.95, 0.85, 0.3), "sash": Color(0.85, 0.2, 0.3), "hat": "jokduri", "weapon": "flower", "cape": Color(0.85, 0.25, 0.3)})
+		"jeonuchi": _human(rig, {"robe": Color(0.85, 0.9, 0.95), "sash": Color(0.3, 0.6, 0.8), "hat": "gat", "weapon": "fan", "beard": true})
+		"honggildong": _human(rig, {"robe": Color(0.15, 0.15, 0.2), "sash": Color(0.6, 0.15, 0.15), "face": "masked", "hat": "gat", "weapon": "sword"})
+		"hwalbin": _human(rig, {"robe": Color(0.12, 0.12, 0.18), "sash": GOLD, "face": "masked", "hat": "headband", "hat_c": Color(0.85, 0.2, 0.2), "weapon": "sword", "cape": Color(0.6, 0.12, 0.12), "scale": 1.1})
+		"baksi": _human(rig, {"robe": Color(0.6, 0.25, 0.35), "hat": "hood", "hat_c": Color(0.25, 0.5, 0.4), "weapon": "talisman"})
+		"mago": _human(rig, {"robe": Color(0.5, 0.4, 0.3), "top": Color(0.6, 0.5, 0.38), "hat": "bun", "hat_c": Color(0.92, 0.92, 0.9), "weapon": "rock", "scale": 1.2})
+		"panokseon": _m_boat(rig, false)
+		"geobukseon": _m_boat(rig, true)
+		"tongjesa": _human(rig, {"robe": Color(0.55, 0.12, 0.12), "top": Color(0.3, 0.28, 0.25), "sash": GOLD, "hat": "helmet", "weapon": "sword", "cape": Color(0.75, 0.1, 0.1), "scale": 1.1})
+		"yongwang": _human(rig, {"robe": Color(0.2, 0.5, 0.45), "sash": GOLD, "hat": "myeon", "hat_c": Color(0.12, 0.25, 0.3), "weapon": "talisman", "beard": true})
+		"hogukryong": _m_hogukryong(rig)
+		"yeonggam": _m_yeonggam(rig)
+		"cheongryong": _m_cheongryong(rig, false)
+		"baekho": _m_baekho(rig)
+		"jujak": _m_jujak(rig)
+		"girin": _m_girin(rig)
+		"bonghwang": _m_bonghwang(rig)
+		"uibyeong": _human(rig, {"robe": Color(0.92, 0.9, 0.84), "hat": "headband", "hat_c": Color(0.95, 0.95, 0.92), "weapon": "spear"})
+		"singijeon": _m_singijeon(rig)
+		"gaema": _m_gaema(rig)
+		"uinyeo": _human(rig, {"robe": Color(0.3, 0.45, 0.55), "top": Color(0.9, 0.85, 0.75), "hat": "bun", "weapon": "book", "w_c": Color(0.5, 0.3, 0.2)})
+		"samsin": _human(rig, {"robe": Color(0.95, 0.95, 0.92), "top": Color(0.85, 0.85, 0.82), "hat": "bun", "hat_c": Color(0.92, 0.92, 0.9), "weapon": "flower", "scale": 0.95})
+		"jacheongbi": _human(rig, {"robe": Color(0.35, 0.55, 0.35), "top": Color(0.9, 0.8, 0.4), "hat": "gat", "weapon": "flower"})
+		"sasin":
+			_m_cheongryong(rig, true)
+			var halo2 := part(rig, torus(0.65, 0.75), fx_mat(Color(1, 0.6, 0.3), 0.5), Vector3(0, 0.1, 0))
+			halo2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		"seungjang": _human(rig, {"robe": Color(0.5, 0.48, 0.45), "top": Color(0.7, 0.35, 0.2), "sash": GOLD, "hat": "satgat", "weapon": "staff", "cape": Color(0.6, 0.3, 0.15), "scale": 1.1})
+	if CHIBI.has(t):
+		var cont: Node3D = rig
+		if rig.get_child_count() == 1 and not (rig.get_child(0) is MeshInstance3D): cont = rig.get_child(0)
+		_chibi(cont, Vector3(0, 1.02, 0), 0.9, 1.32)
+	style_tree(rig)
+
+
+func _build_enemy(rig: Node3D, look: String) -> Array:
+	var segs: Array = []
+	match look:
+		"imugi": segs = _imugi(rig)
+		"bulgasari": _bulgasari(rig)
+		"centipede": segs = _e_centipede(rig)
+		"egg": _egg_ghost(rig)
+		"wisp": _will_o_wisp(rig)
+		"shadow": _shadow(rig)
+		"gaekgwi": _e_gaekgwi(rig)
+		"rat": _e_rat(rig)
+		"yagwang": _e_yagwang(rig)
+		"fox": _quad(rig, {"c": Color(0.9, 0.55, 0.22), "len": 1.25})
+		"changgwi": _e_changgwi(rig)
+		"brute": _e_brute(rig)
+		"tiger": _quad(rig, {"c": Color(0.92, 0.6, 0.2), "len": 1.4, "stripes": true, "eye": Color(1, 0.9, 0.2)})
+		"snake": _serpent(rig, Color(0.2, 0.3, 0.25), 6, 0.2)
+		"isimi": _serpent(rig, Color(0.25, 0.45, 0.5), 5, 0.17)
+		"swarm": _e_swarm(rig)
+		"onelegged": _e_onelegged(rig)
+		"yogwi": _e_yogwi(rig)
+		"daegwi": _e_daegwi(rig)
+		"sogwi": _e_sogwi(rig)
+		"agwi": _e_agwi(rig)
+		"gildal": _e_gildal(rig)
+		"jigwi": _e_jigwi(rig)
+		"yeoksin": _e_yeoksin(rig)
+		"yeongno": _e_yeongno(rig)
+		"foxsister": _e_foxsister(rig)
+		"segment": _e_segment(rig)
+		"daejeok": _e_daejeok(rig)
+		"songaksi": _e_songaksi(rig)
+		"mongdal": _e_mongdal(rig)
+		"haeryong": _serpent(rig, Color(0.2, 0.45, 0.8), 6, 0.24)
+		"judungi": _e_judungi(rig)
+		"gangcheol": segs = _e_gangcheol(rig)
+		"dokryong": segs = _e_dokryong(rig)
+		"goldpig": _e_goldpig(rig)
+		_: _jabgwi(rig)
+	style_tree(rig)
+	for sg in segs: style_tree(sg)
+	return segs
+
+
+# ---------------- external models (.glb) — docs/design/15_model_pipeline.md ----------------
+# assets/models/units/<unit key>.glb and assets/models/yokai/<look key>.glb replace the procedural model when present.
+# Loaded at runtime with GLTFDocument (no editor import needed), fitted to a target height, stood on the floor,
+# and given the same toon shading + outline as everything else.
+var model_dir := "res://assets/models"
+var model_cache := {}
+
+
+func load_model(kind: String, key: String) -> Node3D:
+	var path := "%s/%s/%s.glb" % [model_dir, kind, key]
+	if not model_cache.has(path):
+		var tpl: Node3D = null
+		if FileAccess.file_exists(path):
+			var doc := GLTFDocument.new()
+			var st := GLTFState.new()
+			if doc.append_from_file(path, st) == OK:
+				tpl = doc.generate_scene(st) as Node3D
+		model_cache[path] = tpl
+	var t = model_cache[path]
+	if t == null: return null
+	var inst: Node3D = t.duplicate()
+	var ap := _find_anim(inst)
+	if ap != null:
+		var names := ap.get_animation_list()
+		var pick := ""
+		for nm in names:
+			if String(nm).to_lower().contains("idle"): pick = nm
+		if pick == "" and names.size() > 0: pick = names[0]
+		if pick != "":
+			ap.get_animation(pick).loop_mode = Animation.LOOP_LINEAR
+			ap.autoplay = pick
+	return inst
+
+
+func _find_anim(n: Node) -> AnimationPlayer:
+	if n is AnimationPlayer: return n
+	for ch in n.get_children():
+		var r := _find_anim(ch)
+		if r != null: return r
+	return null
+
+
+func _model_aabb(n: Node, xf: Transform3D) -> AABB:
+	var box_out := AABB()
+	var first := true
+	var x2 := xf
+	if n is Node3D: x2 = xf * (n as Node3D).transform
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		box_out = x2 * (n as MeshInstance3D).mesh.get_aabb()
+		first = false
+	for ch in n.get_children():
+		var cb := _model_aabb(ch, x2)
+		if cb.size == Vector3.ZERO: continue
+		if first:
+			box_out = cb; first = false
+		else: box_out = box_out.merge(cb)
+	return box_out
+
+
+func _fit_model(m: Node3D, height: float) -> Node3D:
+	# wrap the model and fit the wrapper: uniform scale to the target height, centred on x/z, feet on y = 0
+	var fit := Node3D.new()
+	fit.add_child(m)
+	var bb := _model_aabb(m, Transform3D.IDENTITY)
+	if bb.size.y <= 0.0001: return fit
+	var k := height / bb.size.y
+	var c := bb.get_center()
+	fit.scale = Vector3.ONE * k
+	fit.position = Vector3(-c.x * k, -bb.position.y * k, -c.z * k)
+	return fit
+
+
+func _style_model(n: Node) -> void:
+	# toon + rim on every surface material, outline on opaque ones
+	for ch in n.get_children():
+		if ch is MeshInstance3D:
+			var mi := ch as MeshInstance3D
+			if mi.mesh != null:
+				for i in range(mi.mesh.get_surface_count()):
+					var src := mi.get_active_material(i)
+					var bm := src as BaseMaterial3D
+					var d: BaseMaterial3D
+					if bm == null:
+						d = StandardMaterial3D.new()
+						d.albedo_color = Color(0.85, 0.85, 0.85)
+					else:
+						d = bm.duplicate() as BaseMaterial3D
+					d.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+					d.specular_mode = BaseMaterial3D.SPECULAR_TOON
+					d.rim_enabled = true
+					d.rim = 0.3
+					d.rim_tint = 0.6
+					d.metallic = minf(d.metallic, 0.3)
+					if d.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
+						if outline_pass == null: _outline_of(mat(Color.WHITE))
+						d.next_pass = outline_pass
+					mi.set_surface_override_material(i, d)
+		_style_model(ch)
 
 
 # ---------------- co-op: partner stage (mirrored from network snapshots) ----------------
