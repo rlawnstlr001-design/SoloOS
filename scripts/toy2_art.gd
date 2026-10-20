@@ -487,8 +487,9 @@ func make_unit(t: String, tier: int, kin_c: Color, tier_c: Color, hero: bool) ->
 		var halo := part(n, torus(0.26, 0.32), mat(GOLD, GOLD, 3.0), Vector3(0, 1.95, 0))
 		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if tier >= 2:
-		var l := OmniLight3D.new(); l.light_color = tier_c; l.omni_range = 2.2; l.light_energy = 0.8 + tier * 0.4; l.position = Vector3(0, 1.0, 0)
-		n.add_child(l)
+		# glow disc instead of a real light (24 lit units cost ~half the frame rate in the Compatibility renderer)
+		var glow := part(n, cyl(0.8, 0.8, 0.01, 16), fx_mat(tier_c, 0.18 + 0.06 * tier), Vector3(0, 0.1, 0))
+		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var sc := 1.0 + tier * 0.12
 	n.scale = Vector3(sc, sc, sc)
 	root.add_child(n)
@@ -1287,10 +1288,20 @@ func load_model(kind: String, key: String) -> Node3D:
 	if not model_cache.has(path):
 		var tpl: Node3D = null
 		if FileAccess.file_exists(path):
-			var doc := GLTFDocument.new()
-			var st := GLTFState.new()
-			if doc.append_from_file(path, st) == OK:
-				tpl = doc.generate_scene(st) as Node3D
+			# LOD generation takes seconds on 300k-triangle meshes, so the processed scene is cached on disk
+			# (user://model_cache, keyed by the .glb modification time) and later launches load it instantly
+			var cache_path := "user://model_cache/%s_%s_%d.scn" % [kind, key, FileAccess.get_modified_time(path)]
+			if ResourceLoader.exists(cache_path):
+				var ps := load(cache_path) as PackedScene
+				if ps != null: tpl = ps.instantiate() as Node3D
+			if tpl == null:
+				var doc := GLTFDocument.new()
+				var st := GLTFState.new()
+				if doc.append_from_file(path, st) == OK:
+					tpl = doc.generate_scene(st) as Node3D
+					if tpl != null:
+						_add_lods(tpl)
+						_save_cache(tpl, cache_path)
 		model_cache[path] = tpl
 	var t = model_cache[path]
 	if t == null: return null
@@ -1306,6 +1317,46 @@ func load_model(kind: String, key: String) -> Node3D:
 			ap.get_animation(pick).loop_mode = Animation.LOOP_LINEAR
 			ap.autoplay = pick
 	return inst
+
+
+func _save_cache(tpl: Node3D, cache_path: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://model_cache"))
+	_own(tpl, tpl)
+	var ps := PackedScene.new()
+	if ps.pack(tpl) == OK: ResourceSaver.save(ps, cache_path)
+
+
+func _own(n: Node, owner_node: Node) -> void:
+	for ch in n.get_children():
+		ch.owner = owner_node
+		_own(ch, owner_node)
+
+
+func preload_models() -> void:
+	# warm every external model on the prep screen so nothing hitches mid-run
+	if headless: return
+	for kind in ["units", "yokai"]:
+		var dir := DirAccess.open("%s/%s" % [model_dir, kind])
+		if dir == null: continue
+		for fname in dir.get_files():
+			if fname.get_extension().to_lower() == "glb":
+				var m := load_model(kind, fname.get_basename())
+				if m != null: m.free()
+
+
+func _add_lods(n: Node) -> void:
+	# AI meshes come in at 300k+ triangles; let the renderer drop to simplified LODs at gameplay distance
+	for ch in n.get_children():
+		if ch is MeshInstance3D and (ch as MeshInstance3D).mesh is ArrayMesh:
+			var mi := ch as MeshInstance3D
+			var am: ArrayMesh = mi.mesh
+			if am.get_faces().size() / 3 > 20000:
+				var im := ImporterMesh.new()
+				for si in range(am.get_surface_count()):
+					im.add_surface(am.surface_get_primitive_type(si), am.surface_get_arrays(si), [], {}, am.surface_get_material(si), am.surface_get_name(si))
+				im.generate_lods(25.0, 60.0, [])
+				mi.mesh = im.get_mesh()
+		_add_lods(ch)
 
 
 func _find_anim(n: Node) -> AnimationPlayer:

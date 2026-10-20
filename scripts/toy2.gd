@@ -518,6 +518,7 @@ func _setup_world() -> void:
 	var slots: Array = []
 	for s in range(COLS * ROWS): slots.append(slot_pos(s))
 	art.build_world(CORNERS, slots, unlocked)
+	art.preload_models()
 
 
 func _update_cam() -> void:
