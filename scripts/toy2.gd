@@ -6,10 +6,13 @@ extends Node3D
 #  D) 50 waves in 5 acts; each run rolls 4 yokai per act (traits: armor, spirit, split, stealth...) and a boss
 #  E) difficulty (보통/어려움/지옥), board expansion with gold, and a saved village profile: 엽전 earned per run buys
 #     decorations placed around the stage (small buffs), permanent unit unlocks and extra starting cells
+#  F) 2-player co-op over direct IP (net.gd): each player defends their own stage, waves start together,
+#     the partner's stage is mirrored next to yours, one stage falling ends the run for both
 # Merges roll a random unit FROM YOUR POOL, so curating the pool is the strategy.
 # Logic is in step(dt); tests drive it headless. Content tables: toy2_data.gd. Models/effects: toy2_art.gd.
 
 const Art := preload("res://scripts/toy2_art.gd")
+const NetScript := preload("res://scripts/net.gd")
 const D := preload("res://scripts/toy2_data.gd")
 const KINS = D.KINS
 const UNITS = D.UNITS
@@ -33,6 +36,7 @@ const CORNERS := [Vector3(-9, 0, -6), Vector3(9, 0, -6), Vector3(9, 0, 6), Vecto
 const START_SLOTS := [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 25, 26, 27, 28, 29, 30, 33, 34, 35, 36, 37, 38]
 const EXTRA_SLOTS := [8, 15, 24, 31, 16, 23, 0, 7, 32, 39, 18, 21, 17, 22, 19, 20]
 const CAM_DIR := Vector3(0, 0.797, 0.603)
+const PARTNER_OFS := Vector3(38, 0, 0)
 
 var rng := RandomNumberGenerator.new()
 var gold := 100
@@ -81,6 +85,7 @@ var max_alive := 70
 var profile := {}
 var meta_all := false
 var no_save := false   # tests/screenshots: never touch the player's save file
+var auto_start := true  # headless runs start solo on the first step unless a test turns this off
 var deco_fx := {}
 var act_roster: Array = []
 var act_boss: Array = []
@@ -93,6 +98,16 @@ var prep_tab := 0
 var deco_sel := ""
 var spot_marks: Array = []
 var deco_nodes := {}
+# multiplayer
+var net: Node = null
+var mp := false
+var waiting_next := false
+var next_eid := 0
+var partner_built := false
+var partner_units := {}     # slot -> [type, tier, node]
+var partner_enemies := {}   # id -> {node, segs, d0, d1, t0, boss}
+var partner_snap_t := 0
+var ip_edit: LineEdit = null
 
 var art: Art
 var cam: Camera3D
@@ -121,6 +136,10 @@ func _ready() -> void:
 	set_difficulty(profile.get("diff", "hard"))
 	_setup_world()
 	_build_village()
+	net = NetScript.get_net(get_tree())
+	net.game = self
+	if net.active() and not net.is_host:
+		msg = "멀티: 방장이 시작하기를 기다리는 중입니다."
 	hud = Control.new()
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -128,6 +147,16 @@ func _ready() -> void:
 	add_child(layer)
 	layer.add_child(hud)
 	hud.draw.connect(_draw_hud)
+	if not headless:
+		ip_edit = LineEdit.new()
+		ip_edit.position = Vector2(434, 146)
+		ip_edit.size = Vector2(140, 18)
+		ip_edit.placeholder_text = "방장 IP (예: 192.168.0.5)"
+		ip_edit.add_theme_font_override("font", font)
+		ip_edit.add_theme_font_size_override("font_size", 10)
+		ip_edit.visible = false
+		ip_edit.text_submitted.connect(_join_typed)
+		layer.add_child(ip_edit)
 	msg = "준비: 난이도를 고르고 '판 시작'(Enter). 마을 꾸미기·해금은 엽전으로. 휠=줌, 우클릭 드래그=이동."
 
 
@@ -163,15 +192,26 @@ func set_difficulty(k: String) -> void:
 
 func start_game() -> void:
 	if started: return
+	if net != null and net.active():
+		if net.is_host: net.start_match(randi(), diff_key)
+		else: msg = "방장이 판을 시작합니다."
+		return
+	_begin(-1)
+
+
+func _begin(seed: int) -> void:
 	started = true
 	_save_profile()
-	# acts: 4 yokai from each pool (pool order kept) + one boss
+	# acts: 4 yokai from each pool (pool order kept) + one boss. In co-op both peers use the shared seed.
+	var arng := RandomNumberGenerator.new()
+	if seed >= 0: arng.seed = seed
+	else: arng.seed = rng.randi()
 	act_roster.clear(); act_boss.clear()
 	for A in ACTS:
 		var pool_a: Array = A["pool"].duplicate()
-		while pool_a.size() > 4: pool_a.remove_at(rng.randi() % pool_a.size())
+		while pool_a.size() > 4: pool_a.remove_at(arng.randi() % pool_a.size())
 		act_roster.append(pool_a)
-		act_boss.append(A["bosses"][rng.randi() % A["bosses"].size()])
+		act_boss.append(A["bosses"][arng.randi() % A["bosses"].size()])
 	# village decorations
 	deco_fx = {"kin": {}}
 	for sp in profile["placed"]:
@@ -196,10 +236,16 @@ func start_game() -> void:
 		msg = "%s 난이도 시작! Q = 소환, 같은 유닛 3개 = 합성. 영웅 등급부터 MP 스킬 (F, T)." % D.DIFFS[diff_key]["n"]
 	for m in spot_marks: m.visible = false
 	deco_sel = ""
+	if ip_edit != null: ip_edit.visible = false
+	if mp:
+		art.build_partner_stage(PARTNER_OFS, CORNERS, COLS * ROWS, slot_pos)
+		partner_built = true
+		msg = "협동 시작! 각자 자기 무대를 지킵니다. 한쪽이 무너지면 둘 다 패배. V = 동료 무대 보기, G = 골드 20 보내기."
 
 
 func _end_run(win: bool, reason: String) -> void:
 	if over: return
+	if mp: net.send_result(win, reason)
 	over = true
 	won = win
 	lose_reason = reason
@@ -310,6 +356,149 @@ func buy_unit(t: String) -> void:
 	_save_profile()
 
 
+# ---------------- multiplayer hooks (called by net.gd) ----------------
+func net_set_difficulty(k: String) -> void:
+	set_difficulty(k)
+
+
+func net_start(seed: int, k: String) -> void:
+	if started: return
+	set_difficulty(k)
+	mp = true
+	_begin(seed)
+
+
+func net_next_wave(w: int) -> void:
+	if not mp or w != wave + 1: return
+	waiting_next = false
+	start_wave()
+
+
+func _mp_wave_done() -> void:
+	waiting_next = true
+	msg = "웨이브 %d 끝 — 동료를 기다리는 중..." % wave
+	net.wave_done(wave)
+
+
+func set_speed(sp: int) -> void:
+	if mp and not net.is_host:
+		msg = "속도와 일시정지는 방장이 정합니다."
+		return
+	speed = sp
+	if mp: net.send_speed(sp)
+
+
+func on_partner_result(win: bool, reason: String) -> void:
+	if not mp: return
+	if not win and not over:
+		_end_run(false, "동료의 무대가 무너졌습니다 (%s)" % reason)
+	elif win:
+		msg = "동료가 최종 보스를 물리쳤습니다!" if not over else ("협동 승리!" if won else msg)
+
+
+func on_partner_left() -> void:
+	if not mp: return
+	mp = false
+	msg = "동료와 연결이 끊겼습니다. 혼자 계속합니다."
+	if waiting_next:
+		waiting_next = false
+		start_wave()
+
+
+func on_gift(amount: int) -> void:
+	gold += amount
+	msg = "동료가 골드 %d을(를) 보냈습니다!" % amount
+	_float("+%d 선물" % amount, Vector3(0, 2, 0), Color(1, 0.85, 0.3))
+
+
+func send_gift() -> void:
+	if not mp or over or gold < 20: return
+	gold -= 20
+	net.send_gold(20)
+	msg = "동료에게 골드 20을 보냈습니다."
+
+
+func make_snapshot() -> Dictionary:
+	var us := []
+	for u in units: us.append([u["slot"], u["type"], u["tier"]])
+	var es := []
+	for e in enemies: es.append([e["id"], e["key"], snappedf(e["d"], 0.01), snappedf(e["hp"] / e["maxhp"], 0.01), e["boss"]])
+	return {"wave": wave, "gold": gold, "alive": enemies.size(), "units": us, "en": es, "over": over, "won": won, "cap": max_alive}
+
+
+func on_partner_snap(data: Dictionary) -> void:
+	if not partner_built or headless: return
+	var now := Time.get_ticks_msec()
+	# units
+	var seen := {}
+	for row in data.get("units", []):
+		var sl: int = row[0]
+		seen[sl] = true
+		var cur = partner_units.get(sl)
+		if cur == null or cur[0] != row[1] or cur[1] != row[2]:
+			if cur != null: cur[2].queue_free()
+			var nd := _make_unit_node(row[1], row[2])
+			nd.position = slot_pos(sl) + PARTNER_OFS + Vector3(0, 0.12, 0)
+			partner_units[sl] = [row[1], row[2], nd]
+	for sl in partner_units.keys():
+		if not seen.has(sl):
+			partner_units[sl][2].queue_free()
+			partner_units.erase(sl)
+	# enemies
+	var alive := {}
+	for row in data.get("en", []):
+		var id: int = row[0]
+		alive[id] = true
+		var pe = partner_enemies.get(id)
+		if pe == null:
+			var look := art.make_enemy(ENEMIES[row[1]]["look"], row[4])
+			var nd2: Node3D = look["node"]
+			var sc := 1.0 if row[4] else 0.75 + 0.01 * int(data.get("wave", 1))
+			nd2.scale = Vector3.ONE * sc
+			pe = {"node": nd2, "segs": look["segs"], "d0": row[2], "d1": row[2], "t0": now, "boss": row[4]}
+			partner_enemies[id] = pe
+		else:
+			pe["d0"] = _partner_d(pe, now)
+			pe["d1"] = row[2]
+			pe["t0"] = now
+	for id in partner_enemies.keys():
+		if not alive.has(id):
+			var pe2: Dictionary = partner_enemies[id]
+			art.puff(pe2["node"].position, Color(0.6, 0.35, 0.8), 4, 0.14)
+			pe2["node"].queue_free()
+			for sg in pe2["segs"]: sg.queue_free()
+			partner_enemies.erase(id)
+
+
+func _partner_d(pe: Dictionary, now: int) -> float:
+	var f := clampf(float(now - pe["t0"]) / (NetScript.SNAP_EVERY * 1000.0), 0.0, 1.0)
+	return lerpf(pe["d0"], pe["d1"], f)
+
+
+func _update_partner_visuals() -> void:
+	var now := Time.get_ticks_msec()
+	for id in partner_enemies:
+		var pe: Dictionary = partner_enemies[id]
+		var d := _partner_d(pe, now)
+		var pos := path_pos(d) + PARTNER_OFS
+		var nxt := path_pos(d + 0.3) + PARTNER_OFS
+		pe["node"].position = pos
+		if nxt.distance_to(pos) > 0.01: pe["node"].look_at(nxt, Vector3.UP, true)
+		for k in range(pe["segs"].size()):
+			pe["segs"][k].position = path_pos(d - 0.75 * (k + 1)) + PARTNER_OFS + Vector3(0, 0.55, 0)
+
+
+func toggle_partner_view() -> void:
+	if not mp: return
+	if cam_target.x > PARTNER_OFS.x * 0.5: cam_target.x -= PARTNER_OFS.x
+	else: cam_target.x += PARTNER_OFS.x
+	_update_cam()
+
+
+func _exit_tree() -> void:
+	if net != null and net.game == self: net.game = null
+
+
 func fx(k: String) -> float:
 	return float(deco_fx.get(k, 0.0))
 
@@ -333,7 +522,7 @@ func _setup_world() -> void:
 
 func _update_cam() -> void:
 	cam_dist = clampf(cam_dist, 9.0, 36.0)
-	cam_target.x = clampf(cam_target.x, -12.0, 15.0)
+	cam_target.x = clampf(cam_target.x, -12.0, 15.0 + (PARTNER_OFS.x if mp else 0.0))
 	cam_target.z = clampf(cam_target.z, -9.0, 9.0)
 	cam.position = cam_target + CAM_DIR * cam_dist
 	cam.look_at(cam_target, Vector3.UP)
@@ -854,7 +1043,8 @@ func pick_card(k: int) -> void:
 			"remove": pool.erase(c["key"]); msg = "%s을(를) 소환 풀에서 뺐습니다." % UNITS[c["key"]]["n"]
 			"relic": relics.append(c["key"]); msg = "유물 획득: %s" % RELICS[c["key"]][0]
 	choosing = false
-	start_wave()
+	if mp: _mp_wave_done()
+	else: start_wave()
 
 
 # ---------------- waves ----------------
@@ -918,6 +1108,8 @@ func _spawn_enemy(key: String, child: bool, at_d: float) -> void:
 		"dispel_t": 0.0, "lap": 0, "hex_t": 3.0 + rng.randf() * 3.0, "revived": false, "node": null, "bar": null, "segs": [], "hit": 0.0}
 	if boss and relics.has("jeokpae"): e["hp"] = hp * 0.85
 	if not seen_enemies.has(key): seen_enemies.append(key)
+	e["id"] = next_eid
+	next_eid += 1
 	var look := art.make_enemy(E["look"], boss)
 	var n: Node3D = look["node"]
 	e["segs"] = look["segs"]
@@ -956,7 +1148,7 @@ func _flat(a: Vector3, b: Vector3) -> float:
 # ---------------- simulation step ----------------
 func step(dt: float) -> void:
 	if not started:
-		if headless: start_game()
+		if headless and auto_start and (net == null or net.peer == null): start_game()
 		else: return
 	if over or choosing: return
 	if wave == 0: start_wave()
@@ -969,12 +1161,13 @@ func step(dt: float) -> void:
 			_spawn_enemy(sk, false, 0.0)
 			if ENEMIES[sk]["tr"].has("swarm"): _spawn_enemy(sk, false, 0.0)
 			spawn_i += 1; to_spawn -= 1; spawn_t = SPAWN_GAP
-	if wave_t <= 0 and wave < LAST_WAVE and not (boss_alive and wave >= LAST_WAVE):
+	if wave_t <= 0 and wave < LAST_WAVE and not waiting_next and not (boss_alive and wave >= LAST_WAVE):
 		gold += int((15 + wave * 2) * D.DIFFS[diff_key]["gold"]) + (12 if relics.has("yeopjeon") else 0) + int(fx("wave_gold"))
 		if wave % 2 == 0:
 			make_cards()
 			return
-		start_wave()
+		if mp: _mp_wave_done()
+		else: start_wave()
 	if relics.has("manpa") and not manpa_done and wave_t <= WAVE_TIME - 8.0:
 		manpa_done = true
 		for e in enemies: e["stun_t"] = maxf(e["stun_t"], 2.0)
@@ -1163,6 +1356,7 @@ func _process(delta: float) -> void:
 	t_acc += delta
 	for k in range(speed): step(delta)
 	art.update(delta, t_acc)
+	if partner_built: _update_partner_visuals()
 	for u in units:
 		if u["tier"] == 3: u["node"].position.y = 0.12 + 0.08 * sin(t_acc * 3.0)
 		u["atk"] = maxf(0.0, u["atk"] - delta * 5.0)
@@ -1251,12 +1445,26 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_T: toggle_auto(selected)
 			KEY_C: show_codex = not show_codex
 			KEY_TAB: codex_tab = (codex_tab + 1) % 8
-			KEY_SPACE: speed = 0 if speed > 0 else 1
-			KEY_1: speed = 1
-			KEY_2: speed = 2
-			KEY_3: speed = 3
-			KEY_R: get_tree().reload_current_scene()
-			KEY_M: get_tree().change_scene_to_file("res://scenes/main.tscn")
+			KEY_SPACE: set_speed(0 if speed > 0 else 1)
+			KEY_1: set_speed(1)
+			KEY_2: set_speed(2)
+			KEY_3: set_speed(3)
+			KEY_V: toggle_partner_view()
+			KEY_G: send_gift()
+			KEY_R: restart()
+			KEY_M: to_menu()
+
+
+func restart() -> void:
+	if mp and not over:
+		msg = "협동 중에는 판이 끝난 뒤에 다시 시작할 수 있습니다."
+		return
+	get_tree().reload_current_scene()
+
+
+func to_menu() -> void:
+	if net != null: net.leave()
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
 func _hud_pos(p: Vector2) -> Vector2:
@@ -1319,10 +1527,14 @@ func _build_buttons() -> void:
 	y += 3
 	for s in range(4):
 		var lab: String = ["일시정지", "1배속", "2배속", "3배속"][s]
-		_btn(lab, Rect2(x + s * 50, y, 48, 15), func(): speed = s, true, speed == s)
+		_btn(lab, Rect2(x + s * 50, y, 48, 15), func(): set_speed(s), not mp or net.is_host, speed == s)
 	y += 18
-	_btn("다시 시작 (R)", Rect2(x, y, 98, 15), func(): get_tree().reload_current_scene(), true)
-	_btn("메뉴 (M)", Rect2(x + 102, y, 98, 15), func(): get_tree().change_scene_to_file("res://scenes/main.tscn"), true)
+	_btn("다시 시작 (R)", Rect2(x, y, 98, 15), restart, not mp or over)
+	_btn("메뉴 (M)", Rect2(x + 102, y, 98, 15), to_menu, true)
+	if mp:
+		y += 18
+		_btn("동료 무대 보기 [V]", Rect2(x, y, 98, 15), toggle_partner_view, true)
+		_btn("골드 20 보내기 [G]", Rect2(x + 102, y, 98, 15), send_gift, gold >= 20 and not over, false, "동료에게 골드 20을 보냅니다.")
 	if sel_slot >= 0 and not unlocked[sel_slot]:
 		_btn("칸 열기 (%d골드) [B]" % slot_cost(), Rect2(x + 4, 336, 192, 16), func(): unlock_slot(sel_slot), gold >= slot_cost() and not over, true, "무대 확장: 이 칸을 열어 유닛을 더 놓습니다.\n열 때마다 값이 40골드씩 오릅니다.")
 	if sel_ok and has_skill(selected):
@@ -1336,13 +1548,22 @@ func _build_prep_buttons() -> void:
 	var k := 0
 	for dk in D.DIFF_KEYS:
 		var Df: Dictionary = D.DIFFS[dk]
-		_btn(Df["n"], Rect2(x + k * 68, 30, 64, 18), set_difficulty.bind(dk), true, diff_key == dk, Df["d"] + "\n엽전 보상 ×%.1f" % Df["yeop"])
+		_btn(Df["n"], Rect2(x + k * 68, 30, 64, 18), _pick_difficulty.bind(dk), not net.active() or net.is_host, diff_key == dk, Df["d"] + "\n엽전 보상 ×%.1f" % Df["yeop"])
 		k += 1
-	_btn("판 시작  [Enter]", Rect2(x, 76, 200, 22), start_game, true, true, "선택한 난이도로 50웨이브를 시작합니다.\n막마다 나오는 요괴와 보스는 판마다 바뀝니다.")
-	_btn("마을 꾸미기", Rect2(x, 104, 98, 16), func(): prep_tab = 0, true, prep_tab == 0)
-	_btn("해금", Rect2(x + 102, 104, 98, 16), func(): prep_tab = 1, true, prep_tab == 1)
+	var client: bool = net.active() and not net.is_host
+	var start_label := "방장이 시작합니다" if client else ("협동 시작  [Enter]" if net.active() else "판 시작  [Enter]")
+	_btn(start_label, Rect2(x, 76, 200, 22), start_game, not client, true, "선택한 난이도로 50웨이브를 시작합니다.\n막마다 나오는 요괴와 보스는 판마다 바뀝니다.")
+	_btn("마을 꾸미기", Rect2(x, 104, 64, 16), func(): prep_tab = 0, true, prep_tab == 0)
+	_btn("해금", Rect2(x + 68, 104, 64, 16), func(): prep_tab = 1, true, prep_tab == 1)
+	_btn("멀티", Rect2(x + 136, 104, 64, 16), func(): prep_tab = 2, true, prep_tab == 2, "친구와 IP로 접속해 각자 무대 협동.")
+	if ip_edit != null: ip_edit.visible = prep_tab == 2 and not started
 	var y := 124.0
 	var yeop := int(profile["yeop"])
+	if prep_tab == 2:
+		_btn("방 만들기", Rect2(x, y, 98, 16), func(): net.host(), net.peer == null, net.is_host, "내가 방장이 됩니다. 친구에게 아래 IP를 알려 주세요.")
+		_btn("나가기", Rect2(x + 102, y, 98, 16), func(): net.leave(), net.peer != null)
+		_btn("접속", Rect2(x + 146, y + 22, 54, 18), _join_typed, net.peer == null, false, "입력한 IP의 방에 접속합니다.")
+		return
 	if prep_tab == 0:
 		var col := 0
 		for dk in D.DECO_KEYS:
@@ -1371,6 +1592,15 @@ func _build_prep_buttons() -> void:
 			col2 += 1
 			if col2 == 2:
 				col2 = 0; y += 17
+
+
+func _pick_difficulty(k: String) -> void:
+	set_difficulty(k)
+	net.send_difficulty(k)
+
+
+func _join_typed(_t: String = "") -> void:
+	if ip_edit != null: net.join(ip_edit.text)
 
 
 func _pool_text() -> String:
@@ -1427,6 +1657,14 @@ func _draw_hud() -> void:
 		var txt := "%s %d%s" % [KINS[kin][0], kin_count.get(kin, 0), (" ★%d" % lv) if lv > 0 else ""]
 		c.draw_string(font, Vector2(sx, 44), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, kc.lightened(0.3) if lv > 0 else Color(0.55, 0.55, 0.62))
 		sx += font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x + 12
+	if mp:
+		var ps: Dictionary = net.partner_snap
+		var ptxt := "동료: 연결 대기"
+		if not ps.is_empty():
+			ptxt = "동료: 웨이브 %d · 요괴 %d/%d · 골드 %d%s" % [int(ps.get("wave", 0)), int(ps.get("alive", 0)), int(ps.get("cap", 70)), int(ps.get("gold", 0)), ("  (패배)" if ps.get("over", false) and not ps.get("won", false) else "")]
+		if waiting_next: ptxt += "  · 동료 기다리는 중"
+		c.draw_rect(Rect2(4, 52, 300, 14), Color(0.03, 0.04, 0.08, 0.75))
+		c.draw_string(font, Vector2(10, 63), ptxt, HORIZONTAL_ALIGNMENT_LEFT, 296, 9, Color(0.6, 1.0, 0.8))
 	# synergy lines between same-kin neighbours
 	for i in range(units.size()):
 		var ki: String = UNITS[units[i]["type"]]["kin"]
@@ -1492,6 +1730,9 @@ func _draw_hud() -> void:
 		c.draw_string(font, Vector2(60, 168), "승리!" if won else "패배", HORIZONTAL_ALIGNMENT_CENTER, 320, 22, Color(1, 0.9, 0.4))
 		c.draw_string(font, Vector2(60, 186), lose_reason if not won else "처치 %d마리 · 영웅 %d명 발견" % [kills, discovered.size()], HORIZONTAL_ALIGNMENT_CENTER, 320, 10, Color(1, 1, 1))
 		c.draw_string(font, Vector2(60, 198), "엽전 +%d (보유 %d) · R: 마을로" % [yeop_earned, int(profile["yeop"])], HORIZONTAL_ALIGNMENT_CENTER, 320, 9, Color(1, 0.85, 0.3))
+		if mp and won:
+			var pr: String = net.partner_result
+			c.draw_string(font, Vector2(60, 152), "협동 승리!" if pr == "won" else "동료가 아직 싸우는 중...", HORIZONTAL_ALIGNMENT_CENTER, 320, 10, Color(0.6, 1.0, 0.8))
 	if hover_btn >= 0 and hover_btn < btns.size() and String(btns[hover_btn]["tip"]) != "" and not choosing:
 		var tip: String = btns[hover_btn]["tip"]
 		var sz := font.get_multiline_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, 196, 10)
@@ -1510,11 +1751,15 @@ func _draw_prep() -> void:
 	var Df: Dictionary = D.DIFFS[diff_key]
 	c.draw_multiline_string(font, Vector2(434, 58), "%s  (최고 %d웨이브)" % [Df["d"], int(best.get(diff_key, 0))], HORIZONTAL_ALIGNMENT_LEFT, 200, 8, 2, Color(0.8, 0.8, 0.9))
 	for i in range(btns.size()): _draw_btn(i)
+	if prep_tab == 2:
+		var info := "상태: %s\n\n같은 와이파이: 방장의 IP를 입력.\n인터넷: 방장이 공유기에서 UDP %d 포트를 열거나, 둘 다 Radmin VPN·Tailscale에 들어가 그 IP로 접속.\n\n각자 자기 무대를 지키고, 한쪽이 무너지면 둘 다 패배. 엽전·마을은 각자." % [net.status if net.status != "" else "연결 안 됨", NetScript.PORT]
+		c.draw_multiline_string(font, Vector2(434, 180), info, HORIZONTAL_ALIGNMENT_LEFT, 200, 9, -1, Color(0.85, 0.88, 0.95))
 	var np: int = profile["placed"].size()
 	c.draw_string(font, Vector2(434, 352), "꾸밈 %d/%d자리 · 판 수 %d" % [np, int(profile["spots"]), int(profile["runs"])], HORIZONTAL_ALIGNMENT_LEFT, 200, 9, Color(0.7, 0.75, 0.85))
 	# spot labels in the world
 	for i in range(D.DECO_SPOTS.size()):
 		var sp := _proj(D.DECO_SPOTS[i] + Vector3(0, 0.3, 0))
+		if sp.x > 420.0 or sp.y > 330.0: continue
 		var key := str(i)
 		var txt := ""
 		if i >= int(profile["spots"]): txt = "닫힘"

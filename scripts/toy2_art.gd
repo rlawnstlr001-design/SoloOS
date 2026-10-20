@@ -1173,6 +1173,26 @@ func _e_daejeok(r: Node3D) -> void:
 	for sx in [-1.0, 1.0]: part(r, cyl(0.12, 0.16, 0.55, 6), mat(c.darkened(0.2)), Vector3(sx * 0.35, 0.25, 0))
 
 
+# ---------------- co-op: partner stage (mirrored from network snapshots) ----------------
+func build_partner_stage(ofs: Vector3, corners: Array, nslots: int, slot_pos: Callable) -> void:
+	var c2: Vector3 = corners[2]
+	part(root, box(Vector3(absf(c2.x) * 2.0 + 6.0, 0.3, absf(c2.z) * 2.0 + 6.0)), mat(Color(0.15, 0.24, 0.17)), ofs + Vector3(0, -0.15, 0))
+	part(root, box(Vector3(absf(c2.x) * 2.0 - 1.4, 0.02, absf(c2.z) * 2.0 - 1.4)), mat(Color(0.4, 0.34, 0.26)), ofs + Vector3(0, 0.005, 0))
+	for k in range(4):
+		var a: Vector3 = corners[k]; var b: Vector3 = corners[(k + 1) % 4]
+		part(root, box(Vector3(absf(b.x - a.x) + 1.4, 0.04, absf(b.z - a.z) + 1.4)), mat(Color(0.31, 0.26, 0.21)), ofs + (a + b) / 2.0 + Vector3(0, 0.02, 0))
+	for i in range(nslots):
+		var p: Vector3 = slot_pos.call(i)
+		part(root, box(Vector3(1.6, 0.1, 1.6)), mat(Color(0.22, 0.23, 0.24)), ofs + p + Vector3(0, 0.05, 0))
+	_portal(corners[0] + ofs)
+	var g := node(root, ofs + Vector3(0, 0, absf(c2.z) + 2.2))
+	var flag := part(g, box(Vector3(2.4, 0.6, 0.05)), mat(Color(0.3, 0.8, 0.6), Color(0.3, 0.8, 0.6), 0.6), Vector3(0, 2.2, 0))
+	_anim(flag, "sway", 1.0, 0.05)
+	for sx in [-1.2, 1.2]: part(g, cyl(0.05, 0.06, 2.6, 6), mat(Color(0.4, 0.3, 0.2)), Vector3(sx, 1.3, 0))
+	var l := OmniLight3D.new(); l.light_color = Color(0.6, 1.0, 0.8); l.omni_range = 18.0; l.light_energy = 0.6; l.position = ofs + Vector3(0, 6, 0)
+	root.add_child(l)
+
+
 # ---------------- village decorations (마을 꾸미기) ----------------
 func build_deco_spots(spots: Array) -> Array:
 	var out: Array = []
