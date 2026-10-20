@@ -104,6 +104,43 @@ const UNITS := {
 	"yongwang": {"n": "용왕", "kin": "sugun", "dmg": 9.0, "int": 1.0, "rng": 4.4, "spl": 1.6, "slow": 0.45, "sp": "",
 		"d": "비와 바다를 다스리는 신. 물보라로 범위 둔화.",
 		"sk": {"n": "호우", "k": "slow", "t": 6.0, "d": "큰비를 내려 모든 요괴 6초 둔화."}},
+	# ---- 해금 유닛 (price: 엽전, 마을 '해금' 탭에서 영구 해금) ----
+	"yeonggam": {"n": "영감 도채비", "kin": "dokkaebi", "dmg": 9.0, "int": 0.7, "rng": 4.2, "spl": 0.0, "slow": 0.0, "sp": "gold", "lock": true, "price": 70,
+		"d": "제주 영감놀이의 도깨비. 풍어를 불러온다. 뚝딱 확률이 있다.",
+		"sk": {"n": "풍어", "k": "bounty", "t": 8.0, "g": 2, "d": "8초 동안 요괴를 잡을 때마다 골드 +2."}},
+	"cheongryong": {"n": "청룡", "kin": "sinsu", "dmg": 12.0, "int": 0.8, "rng": 4.6, "spl": 0.0, "slow": 0.0, "sp": "pierce", "lock": true, "price": 100,
+		"d": "동쪽을 지키는 푸른 용 (사신도). 번개가 셋을 잇는다.",
+		"sk": {"n": "청뢰", "k": "chain", "n_t": 7, "m": 4.0, "d": "가장 앞선 요괴 7마리에 연쇄 번개."}},
+	"baekho": {"n": "백호", "kin": "sinsu", "dmg": 26.0, "int": 1.1, "rng": 3.6, "spl": 0.0, "slow": 0.0, "sp": "crit", "lock": true, "price": 100,
+		"d": "서쪽을 지키는 흰 호랑이 (사신도). 치명타 일격.",
+		"sk": {"n": "호령", "k": "boss", "m": 16.0, "d": "체력이 가장 많은 요괴에게 큰 일격."}},
+	"jujak": {"n": "주작", "kin": "sinsu", "dmg": 13.0, "int": 1.0, "rng": 4.4, "spl": 1.4, "slow": 0.0, "sp": "", "fire": true, "lock": true, "price": 100,
+		"d": "남쪽을 지키는 붉은 새 (사신도). 불 속성 범위 공격.",
+		"sk": {"n": "화익", "k": "nuke", "r": 3.0, "m": 5.5, "d": "날개를 펼쳐 넓은 범위를 태운다."}},
+	"girin": {"n": "기린", "kin": "sinsu", "dmg": 8.0, "int": 0.8, "rng": 4.0, "spl": 0.0, "slow": 0.0, "sp": "", "lock": true, "price": 80,
+		"d": "태평성대의 징조인 상서로운 짐승.",
+		"sk": {"n": "상서", "k": "buff_all", "t": 5.0, "m": 1.3, "d": "모든 유닛 공격 속도 ×1.3 (5초)."}},
+	"bonghwang": {"n": "봉황", "kin": "sinsu", "dmg": 9.0, "int": 0.7, "rng": 4.4, "spl": 0.0, "slow": 0.0, "sp": "multi", "fire": true, "lock": true, "price": 110,
+		"d": "성군이 나타나면 날아온다는 새. 둘을 동시에 친다.",
+		"sk": {"n": "태평성대", "k": "mp_all", "amt": 30.0, "d": "모든 유닛 MP +30."}},
+	"uibyeong": {"n": "의병", "kin": "muin", "dmg": 7.0, "int": 0.6, "rng": 3.6, "spl": 0.0, "slow": 0.0, "sp": "militia", "lock": true, "price": 60,
+		"d": "스스로 일어난 민간 군대. 필드의 의병 1명당 공격력 +6%.",
+		"sk": {"n": "봉기", "k": "buff", "t": 5.0, "m": 1.45, "d": "주변 유닛 공격 속도 ×1.45 (5초)."}},
+	"singijeon": {"n": "신기전 화차", "kin": "muin", "dmg": 20.0, "int": 2.4, "rng": 5.4, "spl": 1.8, "slow": 0.0, "sp": "", "fire": true, "lock": true, "price": 110,
+		"d": "화살 100발을 차례로 쏘는 다연장 발사기. 느리지만 넓다 (불 속성).",
+		"sk": {"n": "일제 발사", "k": "nuke", "r": 3.4, "m": 6.0, "d": "신기전 일제 발사로 아주 넓은 범위 피해."}},
+	"gaema": {"n": "개마무사", "kin": "muin", "dmg": 24.0, "int": 1.0, "rng": 3.0, "spl": 0.6, "slow": 0.0, "sp": "stun", "lock": true, "price": 90,
+		"d": "고구려 중장기병. 맞은 요괴가 잠깐 멈춘다.",
+		"sk": {"n": "돌격", "k": "push", "dist": 3.0, "d": "돌격해 요괴들을 길 뒤로 밀어낸다."}},
+	"uinyeo": {"n": "의녀", "kin": "jusul", "dmg": 6.0, "int": 0.9, "rng": 3.8, "spl": 0.0, "slow": 0.0, "sp": "", "lock": true, "price": 70,
+		"d": "침술을 익힌 조선의 여의원.",
+		"sk": {"n": "침술", "k": "mp", "amt": 50.0, "d": "주변 유닛 MP +50."}},
+	"samsin": {"n": "삼신할미", "kin": "jusul", "dmg": 6.0, "int": 1.0, "rng": 3.8, "spl": 0.0, "slow": 0.0, "sp": "", "lock": true, "price": 120,
+		"d": "아기를 점지하는 신.",
+		"sk": {"n": "점지", "k": "blessing", "n_t": 2, "d": "다음 소환 2번이 희귀 등급으로 나온다."}},
+	"jacheongbi": {"n": "자청비", "kin": "jusul", "dmg": 8.0, "int": 0.8, "rng": 4.0, "spl": 0.0, "slow": 0.0, "sp": "", "lock": true, "price": 80,
+		"d": "서천꽃밭과 오곡을 가져온 농경신 (세경본풀이).",
+		"sk": {"n": "오곡 씨앗", "k": "gold", "g": 18, "d": "골드 +18."}},
 	# ---- recipe heroes (always 전설) ----
 	"dokkaebi_king": {"n": "도깨비 대왕", "kin": "dokkaebi", "dmg": 14.0, "int": 0.5, "rng": 4.2, "spl": 1.0, "slow": 0.0, "sp": "gold", "hero": true,
 		"rec": ["dokkaebi", "dokkaebi", "mudang"], "d": "[영웅] 범위 방망이질 + 뚝딱 확률 25%.",
@@ -138,11 +175,18 @@ const UNITS := {
 	"hogukryong": {"n": "호국룡", "kin": "sugun", "dmg": 20.0, "int": 0.8, "rng": 5.0, "spl": 1.6, "slow": 0.3, "sp": "", "hero": true,
 		"rec": ["yongwang", "panokseon", "hyeonmu"], "d": "[영웅] 죽어서도 동해를 지키는 용 (원형 인물).",
 		"sk": {"n": "만파식적", "k": "stun", "t": 2.8, "d": "피리 소리로 모든 요괴를 2.8초 잠재운다."}},
+	"sasin": {"n": "사신 수호진", "kin": "sinsu", "dmg": 24.0, "int": 0.6, "rng": 5.0, "spl": 1.4, "slow": 0.0, "sp": "pierce", "hero": true, "fire": true,
+		"rec": ["cheongryong", "baekho", "jujak"], "d": "[영웅] 청룡·백호·주작이 함께 지키는 사방 수호진.",
+		"sk": {"n": "사신진", "k": "nuke", "r": 4.0, "m": 8.0, "d": "사방 수호신이 아주 넓은 범위를 친다."}},
+	"seungjang": {"n": "도총섭 승장", "kin": "muin", "dmg": 28.0, "int": 0.7, "rng": 4.2, "spl": 0.8, "slow": 0.0, "sp": "holy", "hero": true,
+		"rec": ["seungbyeong", "pansu", "uibyeong"], "d": "[영웅] 승군과 의병을 이끄는 승장 (원형 인물). 영체·장갑 무시.",
+		"sk": {"n": "의승군 결집", "k": "dispel", "t": 10.0, "m": 3.0, "d": "사거리 안 요괴의 능력을 10초 봉인하고 큰 피해."}},
 }
 const BASE_KEYS := ["dokkaebi", "dokkaebibul", "ssireum", "bihyeong", "haetae", "gumiho", "samjogo", "hyeonmu",
 	"gungsa", "posu", "hwarang", "seungbyeong", "mudang", "jeoseung", "cheoyong", "pansu",
-	"jeonuchi", "honggildong", "baksi", "mago", "mulgwisin", "panokseon", "geobukseon", "yongwang"]
-const HERO_KEYS := ["dokkaebi_king", "gwigyo", "chakho", "agijangsu", "cheonnyeon", "yeomra", "bari", "cheoyongrang", "hwalbin", "tongjesa", "hogukryong"]
+	"jeonuchi", "honggildong", "baksi", "mago", "mulgwisin", "panokseon", "geobukseon", "yongwang",
+	"yeonggam", "cheongryong", "baekho", "jujak", "girin", "bonghwang", "uibyeong", "singijeon", "gaema", "uinyeo", "samsin", "jacheongbi"]
+const HERO_KEYS := ["dokkaebi_king", "gwigyo", "chakho", "agijangsu", "seungjang", "cheonnyeon", "sasin", "yeomra", "bari", "cheoyongrang", "hwalbin", "tongjesa", "hogukryong"]
 const START_POOL := ["dokkaebi", "gungsa", "mudang", "mulgwisin", "haetae"]
 
 const RELICS := {
@@ -166,12 +210,15 @@ const RELICS := {
 
 # traits (effects in toy2.gd); boss patterns (bp): summon (minion key), enrage, regen, split (into key x n)
 const TRAIT_NAMES := {"fast": "빠름", "armor": "장갑", "spirit": "영체", "split": "분열", "regen": "재생", "stealth": "은신",
-	"slowimm": "둔화 면역", "shield": "수호", "ironeater": "쇠 먹음", "thief": "도둑", "plague": "역병", "flee": "도주", "swarm": "떼"}
+	"slowimm": "둔화 면역", "shield": "수호", "ironeater": "쇠 먹음", "thief": "도둑", "plague": "역병", "flee": "도주", "swarm": "떼",
+	"hex": "빙의", "revive": "부활", "drought": "가뭄"}
 const TRAIT_TIPS := {"fast": "빠르게 달린다", "armor": "약한 공격을 크게 깎는다 → 한 방이 센 유닛, 승병·판수",
 	"spirit": "무인·도깨비 공격 절반 → 주술·신수·승병", "split": "죽으면 작은 요괴 둘로 갈라진다", "regen": "체력을 계속 회복한다 → 판수",
 	"stealth": "가끔 모습을 감춰 공격받지 않는다 → 판수", "slowimm": "느려지지 않는다", "shield": "주변 요괴가 받는 피해를 줄인다 → 판수",
 	"ironeater": "무인·수군(쇠붙이) 공격을 먹어 버린다. 불 속성에 약함", "thief": "한 바퀴 돌 때마다 골드를 훔친다",
-	"plague": "가까운 유닛의 공격을 느리게 한다 → 처용", "flee": "체력이 절반 아래면 빨라진다", "swarm": "둘씩 몰려나온다"}
+	"plague": "가까운 유닛의 공격을 느리게 한다 → 처용", "flee": "체력이 절반 아래면 빨라진다", "swarm": "둘씩 몰려나온다",
+	"hex": "가끔 가까운 유닛 하나를 2초 묶는다 → 판수", "revive": "한 번 쓰러져도 절반 체력으로 일어난다 → 처형",
+	"drought": "넓은 범위 유닛의 공격을 느리게 하고 버프를 지운다"}
 # enemy: n, hp (multiplier), spd (multiplier), tr (traits), look (art key), src (출전), d
 const ENEMIES := {
 	# 1막 마을 (설날 밤)
@@ -180,6 +227,8 @@ const ENEMIES := {
 	"dungapjwi": {"n": "둔갑쥐", "hp": 0.8, "spd": 1.05, "tr": ["split"], "look": "rat", "src": "쥐둔갑 설화", "d": "버린 손톱을 먹고 사람으로 둔갑한 쥐."},
 	"yagwang": {"n": "야광귀", "hp": 0.9, "spd": 1.15, "tr": ["thief", "stealth"], "look": "yagwang", "src": "세시풍속 '야광이 쫓기'", "d": "설날 밤 신발을 훔쳐 가는 귀신."},
 	"yeou": {"n": "여우", "hp": 0.6, "spd": 1.5, "tr": ["fast"], "look": "fox", "src": "변신 설화", "d": "여우누이가 부르는 여우 떼."},
+	"songaksi": {"n": "손각시", "hp": 1.0, "spd": 1.0, "tr": ["hex"], "look": "songaksi", "src": "손각시 E0030464", "d": "시집 못 가고 죽은 처녀의 원귀."},
+	"mongdal": {"n": "몽달귀신", "hp": 1.1, "spd": 1.0, "tr": ["regen"], "look": "mongdal", "src": "몽달귀신 E0018792", "d": "장가 못 간 총각의 원귀."},
 	# 2막 깊은 산
 	"changgwi": {"n": "창귀", "hp": 1.0, "spd": 1.1, "tr": ["spirit"], "look": "changgwi", "src": "호식장 민속", "d": "범에게 죽어 범을 돕는 넋."},
 	"dueoksini": {"n": "두억시니", "hp": 1.8, "spd": 0.8, "tr": ["armor"], "look": "brute", "src": "표준국어대사전", "d": "모질고 사나운 귀신."},
@@ -190,11 +239,13 @@ const ENEMIES := {
 	"isimi": {"n": "이시미", "hp": 1.3, "spd": 1.0, "tr": ["stealth", "regen"], "look": "isimi", "src": "「산삼과 이시미」", "d": "물속을 오가는 작은 이무기."},
 	"bindae": {"n": "빈대 떼", "hp": 0.35, "spd": 1.2, "tr": ["swarm"], "look": "swarm", "src": "빈대절터 설화", "d": "절을 망하게 했다는 빈대 무리."},
 	"dokgakgwi": {"n": "독각귀", "hp": 1.2, "spd": 1.2, "tr": ["spirit"], "look": "onelegged", "src": "도깨비의 이명", "d": "외다리로 껑충 뛰는 심술 도깨비."},
+	"haeryong": {"n": "해룡", "hp": 1.7, "spd": 0.9, "tr": ["hex"], "look": "haeryong", "src": "『삼국유사』 수로부인 E0062419", "d": "수로부인을 끌고 간 바다의 용."},
 	# 4막 지하국
 	"yogwi": {"n": "요귀", "hp": 1.5, "spd": 0.95, "tr": ["armor", "regen"], "look": "yogwi", "src": "『금방울전』", "d": "금방울을 삼킨 굴 속 요괴."},
 	"daegwi": {"n": "대귀", "hp": 2.2, "spd": 0.8, "tr": ["shield"], "look": "daegwi", "src": "『삼국유사』 밀본최사", "d": "작은 귀신들을 부리는 큰 귀신."},
 	"sogwi": {"n": "소귀", "hp": 0.6, "spd": 1.45, "tr": ["fast"], "look": "sogwi", "src": "『삼국유사』 밀본최사", "d": "철퇴를 든 작은 귀신."},
 	"agwi": {"n": "아귀", "hp": 1.2, "spd": 1.0, "tr": ["thief", "regen"], "look": "agwi", "src": "불교 육도", "d": "끝없이 굶주린 존재."},
+	"judungi": {"n": "주둥이 닷 발", "hp": 1.3, "spd": 1.0, "tr": ["hex"], "look": "judungi", "src": "조마구 설화 E0053218", "d": "주둥이도 다섯 발, 꽁지도 다섯 발인 괴물."},
 	# 5막 옛 도읍 궁궐
 	"gildal": {"n": "길달", "hp": 1.3, "spd": 1.0, "tr": ["flee"], "look": "gildal", "src": "『삼국유사』 도화녀 비형랑", "d": "관복 입은 귀신. 쫓기면 여우로 변해 달아난다."},
 	"jigwi": {"n": "지귀", "hp": 1.2, "spd": 1.05, "tr": ["spirit"], "look": "jigwi", "src": "『수이전』 심화요탑", "d": "마음의 불로 불귀신이 된 사내."},
@@ -206,12 +257,52 @@ const ENEMIES := {
 	"jine_madi": {"n": "지네 마디", "hp": 3.0, "spd": 0.9, "tr": ["slowimm"], "look": "segment", "src": "두꺼비의 보은", "d": "갈라진 지네의 마디."},
 	"imugi": {"n": "이무기", "hp": 26.0, "spd": 0.65, "tr": ["regen"], "look": "imugi", "boss": true, "bp": "regen", "src": "용 항목, 「구복여행」", "d": "용이 되지 못한 큰 뱀."},
 	"daejeok": {"n": "지하국 대적", "hp": 26.0, "spd": 0.65, "tr": ["armor"], "look": "daejeok", "boss": true, "bp": "summon", "minion": "sogwi", "src": "지하국대적퇴치설화", "d": "사람을 훔쳐 가는 지하국의 괴물."},
+	"gangcheol": {"n": "강철이", "hp": 22.0, "spd": 0.75, "tr": ["drought"], "look": "gangcheol", "boss": true, "bp": "enrage", "src": "전설 항목 주석 E0049480", "d": "지나가기만 해도 초목이 마른다는 악룡."},
+	"dokryong": {"n": "독룡", "hp": 20.0, "spd": 0.65, "tr": ["revive", "regen"], "look": "dokryong", "boss": true, "bp": "regen", "src": "『삼국유사』 혜통항룡 E0063648", "d": "원한으로 버드나무가 되어 보복한 용."},
+	"geumdwaeji": {"n": "금돼지", "hp": 24.0, "spd": 0.7, "tr": ["stealth", "thief"], "look": "goldpig", "boss": true, "bp": "goldpig", "src": "『최고운전』 E0057190", "d": "사람을 훔쳐 굴에 숨긴 금빛 돼지."},
 	"bulgasari": {"n": "불가사리", "hp": 24.0, "spd": 0.65, "tr": ["ironeater"], "look": "bulgasari", "boss": true, "bp": "enrage", "src": "불가사리 설화 (송도 말년)", "d": "쇠를 먹고 자라 불로만 죽는다는 괴수."},
 }
+# acts: each run picks 4 yokai from the pool (kept in pool order) and one boss — 판마다 다른 요괴 조합
 const ACTS := [
-	{"n": "1막 · 설날 밤 마을", "roster": ["jabgwi", "gaekgwi", "dungapjwi", "yagwang"], "boss": "yeounui"},
-	{"n": "2막 · 깊은 산 고갯길", "roster": ["changgwi", "dueoksini", "eodukseoni", "horangi"], "boss": "jine"},
-	{"n": "3막 · 강과 깊은 못", "roster": ["gureongi", "bindae", "isimi", "dokgakgwi"], "boss": "imugi"},
-	{"n": "4막 · 지하국", "roster": ["sogwi", "yogwi", "daegwi", "agwi"], "boss": "daejeok"},
-	{"n": "5막 · 옛 도읍 궁궐", "roster": ["gildal", "jigwi", "yeoksin", "yeongno"], "boss": "bulgasari"},
+	{"n": "1막 · 설날 밤 마을", "pool": ["jabgwi", "gaekgwi", "dungapjwi", "yagwang", "songaksi", "mongdal"], "bosses": ["yeounui"]},
+	{"n": "2막 · 깊은 산 고갯길", "pool": ["changgwi", "dueoksini", "eodukseoni", "horangi", "dokgakgwi"], "bosses": ["jine", "gangcheol"]},
+	{"n": "3막 · 강과 깊은 못", "pool": ["gureongi", "bindae", "isimi", "haeryong"], "bosses": ["imugi", "dokryong"]},
+	{"n": "4막 · 지하국", "pool": ["sogwi", "yogwi", "daegwi", "agwi", "judungi"], "bosses": ["daejeok", "geumdwaeji"]},
+	{"n": "5막 · 옛 도읍 궁궐", "pool": ["gildal", "jigwi", "yeoksin", "yeongno"], "bosses": ["bulgasari"]},
 ]
+
+# ---- difficulty ----
+# growth: enemy hp per wave, count: extra yokai per wave, boss: boss hp mult, gold: wave reward mult, yeop: 엽전 reward mult
+const DIFF_KEYS := ["normal", "hard", "hell"]
+const DIFFS := {
+	"normal": {"n": "보통", "growth": 1.165, "count": 0, "boss": 1.0, "gold": 1.0, "alive": 70, "yeop": 1.0, "d": "처음 하는 사람용. 강화 없이는 4막에서 막힌다."},
+	"hard": {"n": "어려움", "growth": 1.175, "count": 4, "boss": 1.2, "gold": 0.9, "alive": 70, "yeop": 1.6, "d": "요괴가 더 많고 질기다. 시너지·강화·스킬을 다 써야 한다."},
+	"hell": {"n": "지옥", "growth": 1.181, "count": 8, "boss": 1.3, "gold": 0.8, "alive": 60, "yeop": 2.4, "d": "지옥문이 열렸다. 요괴 한도 60, 보상 감소."},
+}
+
+# ---- 마을 꾸미기 (meta): decorations bought with 엽전 and placed on spots around the stage ----
+# fx keys: espeed (요괴 속도), start_gold, wave_gold, mp_regen, range, refund, exec, boss_dmg, kin (계열 공격력), start_relic
+const DECOS := {
+	"jangseung": {"n": "장승", "cost": 40, "fx": {"espeed": -0.05}, "d": "마을 어귀의 수호상. 요괴 이동 속도 -5%."},
+	"sotdae": {"n": "솟대", "cost": 40, "fx": {"start_gold": 40}, "d": "마을의 안녕을 비는 장대. 시작 골드 +40."},
+	"seonang": {"n": "서낭당", "cost": 50, "fx": {"wave_gold": 4}, "d": "고갯마루 돌무더기와 신목. 웨이브 보상 +4."},
+	"seokdeung": {"n": "석등", "cost": 60, "fx": {"mp_regen": 0.25}, "d": "돌로 만든 등. MP 자연 충전 +25%."},
+	"chorong": {"n": "청사초롱 길", "cost": 60, "fx": {"range": 0.2}, "d": "초롱불이 밤길을 밝힌다. 모든 유닛 사거리 +0.2."},
+	"jangdok": {"n": "장독대", "cost": 40, "fx": {"refund": 0.15}, "d": "살림 밑천. 판매 환급 +15%p."},
+	"geumjul": {"n": "금줄", "cost": 70, "fx": {"exec": 0.03}, "d": "잡귀의 출입을 막는 줄. 처형 기준 +3%p."},
+	"haetaesang": {"n": "해태상", "cost": 90, "fx": {"boss_dmg": 0.1}, "d": "화재와 재앙을 막는 석상. 보스 피해 +10%."},
+	"ssireumpan": {"n": "씨름판", "cost": 80, "fx": {"kin": {"dokkaebi": 0.12}}, "d": "도깨비가 좋아하는 모래판. 도깨비 계열 공격력 +12%."},
+	"sindansu": {"n": "신단수", "cost": 80, "fx": {"kin": {"sinsu": 0.12}}, "d": "신령이 내려오는 나무. 신수 계열 공격력 +12%."},
+	"hwalteo": {"n": "활터", "cost": 80, "fx": {"kin": {"muin": 0.12}}, "d": "활쏘기 수련장. 무인 계열 공격력 +12%."},
+	"gutdang": {"n": "굿당", "cost": 80, "fx": {"kin": {"jusul": 0.12}}, "d": "굿을 하는 집. 주술 계열 공격력 +12%."},
+	"jeongja": {"n": "정자", "cost": 80, "fx": {"kin": {"sinseon": 0.12}}, "d": "신선이 쉬어 가는 정자. 신선 계열 공격력 +12%."},
+	"yeonmot": {"n": "연못", "cost": 80, "fx": {"kin": {"sugun": 0.12}}, "d": "용궁으로 통한다는 연못. 수군 계열 공격력 +12%."},
+	"obanggi": {"n": "오방기", "cost": 150, "fx": {"start_relic": 1}, "d": "다섯 방위 신장의 깃발. 판 시작 때 무작위 유물 1개."},
+}
+const DECO_KEYS := ["jangseung", "sotdae", "seonang", "seokdeung", "chorong", "jangdok", "geumjul", "haetaesang",
+	"ssireumpan", "sindansu", "hwalteo", "gutdang", "jeongja", "yeonmot", "obanggi"]
+# decoration spots around the stage (outside the track); the first DECO_START are open
+const DECO_SPOTS := [Vector3(-6.5, 0, -8.3), Vector3(-2.5, 0, -8.3), Vector3(2.0, 0, -8.3), Vector3(6.3, 0, -8.3),
+	Vector3(-11.8, 0, -3.2), Vector3(-11.8, 0, 1.0), Vector3(-11.8, 0, 4.8), Vector3(-6.0, 0, 8.2),
+	Vector3(-2.0, 0, 8.2), Vector3(3.0, 0, 8.2), Vector3(11.6, 0, -3.5), Vector3(11.6, 0, 1.5)]
+const DECO_START := 4

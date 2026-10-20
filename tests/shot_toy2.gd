@@ -14,7 +14,9 @@ func _save(n: String) -> void:
 func _process(_d: float) -> bool:
 	f += 1
 	if f == 3:
+		t.no_save = true
 		t.rng.seed = 7
+		t.start_game()
 		var k := 0
 		while k < 6000 and not (t.choosing and t.wave >= 8):
 			k += 1

@@ -2,7 +2,7 @@ extends SceneTree
 # Headless balance check for 도깨비 디펜스 (50 waves): bots of different skill play full games.
 # Policies: idle, skip (never picks cards), random (random cards), smart (cards + clustering + upgrades), noup (smart, never upgrades).
 # Design target: smart clears most runs, noup must fail in the later acts (upgrades are required).
-# Args: [hp_growth] [policy list, comma separated] [seeds]
+# Args: [difficulty key (normal/hard/hell) or hp_growth] [policy list, comma separated] [seeds]
 var f := 0
 
 func _merge_all(t) -> void:
@@ -36,14 +36,17 @@ func _cluster(t) -> void:
 	# smart bot: sort units by kin so neighbours share kin
 	var order: Array = t.units.duplicate()
 	order.sort_custom(func(a, b): return t.UNITS[a["type"]]["kin"] < t.UNITS[b["type"]]["kin"])
-	for k in range(order.size()): order[k]["slot"] = k
+	var open: Array = t.open_slots()
+	for k in range(order.size()): order[k]["slot"] = open[k]
 
 func _play(policy: String, seed: int) -> Array:
 	var t = load("res://scenes/toy2.tscn").instantiate()
 	root.add_child(t)
 	t.rng.seed = seed
 	var a := OS.get_cmdline_user_args()
-	if a.size() > 0: t.hp_growth = float(a[0])
+	if a.size() > 0:
+		if t.D.DIFFS.has(a[0]): t.set_difficulty(a[0])
+		else: t.hp_growth = float(a[0])
 	seed(seed)
 	var steps := 0
 	var heroes := 0
@@ -55,6 +58,11 @@ func _play(policy: String, seed: int) -> Array:
 			_merge_all(t)
 			if policy == "smart" or policy == "noup":
 				_cluster(t)
+				# board expansion: open the next cell when the board is full and gold allows
+				if t.free_slot() < 0 and t.gold >= t.slot_cost() + 60:
+					for c in t.EXTRA_SLOTS:
+						if not t.unlocked[c]:
+							t.unlock_slot(c); break
 			if policy == "smart":
 				var best := ""
 				var bestn := 0

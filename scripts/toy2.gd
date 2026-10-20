@@ -3,7 +3,9 @@ extends Node3D
 #  A) pool building: every 2 waves pick 1 of 3 cards (add unit to summon pool / remove one / relic)
 #  B) recipes (3 specific units -> named hero), neighbour synergy (same-kin neighbours) and kin-count synergy (2/4/6)
 #  C) MP skills: 영웅 등급 이상 units charge MP and cast a lore skill (auto, or manual per unit)
-#  D) 50 waves in 5 acts; each act brings its own yokai with traits (armor, spirit, split, stealth...) and a boss
+#  D) 50 waves in 5 acts; each run rolls 4 yokai per act (traits: armor, spirit, split, stealth...) and a boss
+#  E) difficulty (보통/어려움/지옥), board expansion with gold, and a saved village profile: 엽전 earned per run buys
+#     decorations placed around the stage (small buffs), permanent unit unlocks and extra starting cells
 # Merges roll a random unit FROM YOUR POOL, so curating the pool is the strategy.
 # Logic is in step(dt); tests drive it headless. Content tables: toy2_data.gd. Models/effects: toy2_art.gd.
 
@@ -16,9 +18,9 @@ const HERO_KEYS = D.HERO_KEYS
 const RELICS = D.RELICS
 const ENEMIES = D.ENEMIES
 const ACTS = D.ACTS
-const COLS := 6
-const ROWS := 4
-const MAX_ALIVE := 70
+const COLS := 8
+const ROWS := 5
+const PROFILE_PATH := "user://dokkaebi_profile.json"
 const WAVES_PER_ACT := 10
 const LAST_WAVE := 50
 const WAVE_TIME := 25.0
@@ -26,7 +28,11 @@ const SPAWN_GAP := 0.55
 const MP_MAX := 100.0
 const TIER_NAMES := ["일반", "희귀", "영웅", "전설"]
 const TIER_COLORS := [Color(0.85, 0.85, 0.85), Color(0.35, 0.65, 1.0), Color(0.75, 0.35, 1.0), Color(1.0, 0.75, 0.2)]
-const CORNERS := [Vector3(-8, 0, -5), Vector3(8, 0, -5), Vector3(8, 0, 5), Vector3(-8, 0, 5)]
+const CORNERS := [Vector3(-9, 0, -6), Vector3(9, 0, -6), Vector3(9, 0, 6), Vector3(-9, 0, 6)]
+# board: 8x5 cells; 24 open at start (outer rows of the middle 6 columns), the rest bought with gold (무대 확장)
+const START_SLOTS := [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 25, 26, 27, 28, 29, 30, 33, 34, 35, 36, 37, 38]
+const EXTRA_SLOTS := [8, 15, 24, 31, 16, 23, 0, 7, 32, 39, 18, 21, 17, 22, 19, 20]
+const CAM_DIR := Vector3(0, 0.797, 0.603)
 
 var rng := RandomNumberGenerator.new()
 var gold := 100
@@ -57,12 +63,36 @@ var selected := -1
 var msg := ""
 var kills := 0
 var casts := 0
-var hp_growth := 1.165
+var hp_growth := 1.175
 var headless := false
 var show_codex := false
 var codex_tab := 0
 var kin_count := {}
 var manpa_done := false
+var unlocked: Array = []
+var bought_slots := 0
+var sel_slot := -1
+var cam_target := Vector3(3.6, 0, 0.9)
+var cam_dist := 24.0
+var drag_btn := 0
+var started := false
+var diff_key := "hard"
+var max_alive := 70
+var profile := {}
+var meta_all := false
+var no_save := false   # tests/screenshots: never touch the player's save file
+var deco_fx := {}
+var act_roster: Array = []
+var act_boss: Array = []
+var bosses_killed := 0
+var yeop_earned := -1
+var bounty_t := 0.0
+var bounty_g := 0
+var blessing_n := 0
+var prep_tab := 0
+var deco_sel := ""
+var spot_marks: Array = []
+var deco_nodes := {}
 
 var art: Art
 var cam: Camera3D
@@ -87,7 +117,10 @@ func _ready() -> void:
 	for k in range(4):
 		perimeter += CORNERS[k].distance_to(CORNERS[(k + 1) % 4])
 	art = Art.new(self, headless)
+	_load_profile()
+	set_difficulty(profile.get("diff", "hard"))
 	_setup_world()
+	_build_village()
 	hud = Control.new()
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -95,7 +128,190 @@ func _ready() -> void:
 	add_child(layer)
 	layer.add_child(hud)
 	hud.draw.connect(_draw_hud)
-	msg = "Q = 소환. 유닛 클릭 후 빈 칸 클릭 = 이동. 영웅 등급부터 MP 스킬 (F 시전, T 자동/수동). C = 도감."
+	msg = "준비: 난이도를 고르고 '판 시작'(Enter). 마을 꾸미기·해금은 엽전으로. 휠=줌, 우클릭 드래그=이동."
+
+
+# ---------------- profile (meta) ----------------
+func _load_profile() -> void:
+	profile = {"yeop": 0, "decos": [], "placed": {}, "spots": D.DECO_START, "start_slots": 0, "units": [], "best": {}, "runs": 0, "diff": "hard"}
+	meta_all = headless
+	if headless or not FileAccess.file_exists(PROFILE_PATH): return
+	var f := FileAccess.open(PROFILE_PATH, FileAccess.READ)
+	if f == null: return
+	var data = JSON.parse_string(f.get_as_text())
+	if data is Dictionary:
+		for k in data: profile[k] = data[k]
+
+
+func _save_profile() -> void:
+	if headless or no_save: return
+	var f := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	if f != null: f.store_string(JSON.stringify(profile, "  "))
+
+
+func unit_unlocked(t: String) -> bool:
+	return meta_all or not UNITS[t].get("lock", false) or profile["units"].has(t)
+
+
+func set_difficulty(k: String) -> void:
+	if not D.DIFFS.has(k) or started: return
+	diff_key = k
+	hp_growth = D.DIFFS[k]["growth"]
+	max_alive = D.DIFFS[k]["alive"]
+	profile["diff"] = k
+
+
+func start_game() -> void:
+	if started: return
+	started = true
+	_save_profile()
+	# acts: 4 yokai from each pool (pool order kept) + one boss
+	act_roster.clear(); act_boss.clear()
+	for A in ACTS:
+		var pool_a: Array = A["pool"].duplicate()
+		while pool_a.size() > 4: pool_a.remove_at(rng.randi() % pool_a.size())
+		act_roster.append(pool_a)
+		act_boss.append(A["bosses"][rng.randi() % A["bosses"].size()])
+	# village decorations
+	deco_fx = {"kin": {}}
+	for sp in profile["placed"]:
+		var dk: String = profile["placed"][sp]
+		if not D.DECOS.has(dk): continue
+		var fx: Dictionary = D.DECOS[dk]["fx"]
+		for k in fx:
+			if k == "kin":
+				for kin in fx["kin"]: deco_fx["kin"][kin] = deco_fx["kin"].get(kin, 0.0) + fx["kin"][kin]
+			else: deco_fx[k] = deco_fx.get(k, 0) + fx[k]
+	gold += int(deco_fx.get("start_gold", 0))
+	for k in range(int(profile["start_slots"])):
+		if k < EXTRA_SLOTS.size():
+			unlocked[EXTRA_SLOTS[k]] = true
+			art.set_slot_locked(EXTRA_SLOTS[k], false)
+	if deco_fx.get("start_relic", 0) > 0:
+		var rk: Array = RELICS.keys()
+		var r: String = rk[rng.randi() % rk.size()]
+		relics.append(r)
+		msg = "오방기: 유물 '%s'로 시작합니다." % RELICS[r][0]
+	else:
+		msg = "%s 난이도 시작! Q = 소환, 같은 유닛 3개 = 합성. 영웅 등급부터 MP 스킬 (F, T)." % D.DIFFS[diff_key]["n"]
+	for m in spot_marks: m.visible = false
+	deco_sel = ""
+
+
+func _end_run(win: bool, reason: String) -> void:
+	if over: return
+	over = true
+	won = win
+	lose_reason = reason
+	msg = ("승리! " if win else "패배: ") + reason
+	var cleared := wave - (0 if win else 1)
+	yeop_earned = int(round((cleared + bosses_killed * 5 + (20 if win else 0)) * D.DIFFS[diff_key]["yeop"]))
+	profile["yeop"] = int(profile["yeop"]) + yeop_earned
+	profile["runs"] = int(profile["runs"]) + 1
+	var best: Dictionary = profile["best"]
+	if wave > int(best.get(diff_key, 0)): best[diff_key] = wave
+	_save_profile()
+
+
+# ---------------- village (decorations, unlocks) ----------------
+func _build_village() -> void:
+	spot_marks = art.build_deco_spots(D.DECO_SPOTS)
+	_refresh_village()
+
+
+func _refresh_village() -> void:
+	var nspots := int(profile["spots"])
+	for i in range(spot_marks.size()):
+		art.set_spot_state(spot_marks[i], i < nspots, profile["placed"].has(str(i)))
+		spot_marks[i].visible = not started
+	for k in deco_nodes.keys():
+		deco_nodes[k].queue_free()
+	deco_nodes.clear()
+	for sp in profile["placed"]:
+		var dk: String = profile["placed"][sp]
+		if D.DECOS.has(dk): deco_nodes[sp] = art.make_deco(dk, D.DECO_SPOTS[int(sp)])
+
+
+func deco_owned(k: String) -> bool:
+	return profile["decos"].has(k)
+
+
+func deco_placed_at(k: String) -> String:
+	for sp in profile["placed"]:
+		if profile["placed"][sp] == k: return sp
+	return ""
+
+
+func click_deco(k: String) -> void:
+	if started: return
+	if deco_owned(k):
+		deco_sel = "" if deco_sel == k else k
+		msg = ("'%s' 선택: 마을의 빈 자리(초록 고리)를 클릭해 놓으세요." % D.DECOS[k]["n"]) if deco_sel != "" else "선택 해제."
+		return
+	var c: int = D.DECOS[k]["cost"]
+	if int(profile["yeop"]) < c:
+		msg = "엽전이 부족합니다 (%d 필요). 판을 끝내면 엽전을 받습니다." % c
+		return
+	profile["yeop"] = int(profile["yeop"]) - c
+	profile["decos"].append(k)
+	deco_sel = k
+	msg = "'%s' 구입! 마을의 빈 자리(초록 고리)를 클릭해 놓으세요." % D.DECOS[k]["n"]
+	_save_profile()
+
+
+func click_spot(i: int) -> void:
+	var key := str(i)
+	if i >= int(profile["spots"]):
+		msg = "닫힌 자리입니다. '해금' 탭에서 꾸밈 자리를 늘리세요."
+		return
+	if deco_sel != "":
+		var old := deco_placed_at(deco_sel)
+		if old != "": profile["placed"].erase(old)
+		profile["placed"][key] = deco_sel
+		msg = "'%s'을(를) 놓았습니다. 다음 판부터 효과: %s" % [D.DECOS[deco_sel]["n"], D.DECOS[deco_sel]["d"]]
+		deco_sel = ""
+	elif profile["placed"].has(key):
+		msg = "'%s'을(를) 치웠습니다 (보관함으로)." % D.DECOS[profile["placed"][key]]["n"]
+		profile["placed"].erase(key)
+	_save_profile()
+	_refresh_village()
+
+
+func meta_cost(kind: String) -> int:
+	if kind == "start_slots": return 80 + 40 * int(profile["start_slots"])
+	return 50 + 30 * (int(profile["spots"]) - D.DECO_START)
+
+
+func buy_meta(kind: String) -> void:
+	if started: return
+	var c := meta_cost(kind)
+	var cap := EXTRA_SLOTS.size() if kind == "start_slots" else D.DECO_SPOTS.size()
+	var cur := int(profile[kind])
+	if cur >= cap: return
+	if int(profile["yeop"]) < c:
+		msg = "엽전이 부족합니다 (%d 필요)." % c
+		return
+	profile["yeop"] = int(profile["yeop"]) - c
+	profile[kind] = cur + 1
+	msg = "시작 칸 +1 (다음 판부터)." if kind == "start_slots" else "꾸밈 자리 +1."
+	_save_profile()
+	_refresh_village()
+
+
+func buy_unit(t: String) -> void:
+	if started or unit_unlocked(t): return
+	var c: int = UNITS[t]["price"]
+	if int(profile["yeop"]) < c:
+		msg = "엽전이 부족합니다 (%d 필요)." % c
+		return
+	profile["yeop"] = int(profile["yeop"]) - c
+	profile["units"].append(t)
+	msg = "'%s' 해금! 이제 보상 카드에 나옵니다." % UNITS[t]["n"]
+	_save_profile()
+
+
+func fx(k: String) -> float:
+	return float(deco_fx.get(k, 0.0))
 
 
 func cost() -> int:
@@ -106,12 +322,56 @@ func cost() -> int:
 func _setup_world() -> void:
 	cam = Camera3D.new()
 	cam.fov = 45
-	cam.position = Vector3(4.2, 17, 13)
 	add_child(cam)
-	cam.look_at(Vector3(4.2, 0, 0.6), Vector3.UP)
+	_update_cam()
+	unlocked.clear()
+	for s in range(COLS * ROWS): unlocked.append(START_SLOTS.has(s))
 	var slots: Array = []
 	for s in range(COLS * ROWS): slots.append(slot_pos(s))
-	art.build_world(CORNERS, slots)
+	art.build_world(CORNERS, slots, unlocked)
+
+
+func _update_cam() -> void:
+	cam_dist = clampf(cam_dist, 9.0, 36.0)
+	cam_target.x = clampf(cam_target.x, -12.0, 15.0)
+	cam_target.z = clampf(cam_target.z, -9.0, 9.0)
+	cam.position = cam_target + CAM_DIR * cam_dist
+	cam.look_at(cam_target, Vector3.UP)
+
+
+func zoom_cam(f: float) -> void:
+	cam_dist *= f
+	_update_cam()
+
+
+func reset_cam() -> void:
+	cam_target = Vector3(3.6, 0, 0.9)
+	cam_dist = 24.0
+	_update_cam()
+
+
+# ---------------- board expansion ----------------
+func slot_cost() -> int:
+	return 60 + 40 * bought_slots
+
+
+func unlock_slot(s: int) -> bool:
+	if s < 0 or s >= unlocked.size() or unlocked[s] or over or gold < slot_cost(): return false
+	gold -= slot_cost()
+	bought_slots += 1
+	unlocked[s] = true
+	art.set_slot_locked(s, false)
+	art.pillar(slot_pos(s), Color(0.6, 0.9, 0.6), false)
+	msg = "무대 확장: 칸을 열었습니다. 다음 칸 %d골드." % slot_cost()
+	sel_slot = -1
+	return true
+
+
+func open_slots() -> Array:
+	var out := []
+	for s in range(unlocked.size()):
+		if unlocked[s]: out.append(s)
+	return out
 
 
 func _mat(c: Color, emis: Color = Color.BLACK, e: float = 0.0) -> StandardMaterial3D:
@@ -127,7 +387,7 @@ func _mat(c: Color, emis: Color = Color.BLACK, e: float = 0.0) -> StandardMateri
 
 
 func slot_pos(s: int) -> Vector3:
-	return Vector3(-5.0 + (s % COLS) * 2.0, 0, -3.0 + (s / COLS) * 2.0)
+	return Vector3(-7.0 + (s % COLS) * 2.0, 0, -4.0 + (s / COLS) * 2.0)
 
 
 func path_pos(d: float) -> Vector3:
@@ -154,7 +414,7 @@ func unit_at(s: int) -> int:
 
 func free_slot() -> int:
 	for s in range(COLS * ROWS):
-		if unit_at(s) < 0: return s
+		if unlocked[s] and unit_at(s) < 0: return s
 	return -1
 
 
@@ -189,7 +449,10 @@ func summon() -> bool:
 		return false
 	gold -= cost()
 	var t: String = pool[rng.randi() % pool.size()]
-	_add_unit(t, 0, s)
+	var tier := 0
+	if blessing_n > 0:
+		blessing_n -= 1; tier = 1
+	_add_unit(t, tier, s)
 	art.puff(slot_pos(s), KINS[UNITS[t]["kin"]][1], 6, 0.15)
 	msg = "%s 소환!" % UNITS[t]["n"]
 	return true
@@ -276,7 +539,7 @@ func craft(i: int) -> bool:
 
 func sell(i: int) -> void:
 	if i < 0 or i >= units.size(): return
-	var refund := int(cost() * pow(3, units[i]["tier"]) * (1.0 if relics.has("hwansaeng") else 0.5))
+	var refund := int(cost() * pow(3, units[i]["tier"]) * minf(1.0, (1.0 if relics.has("hwansaeng") else 0.5) + fx("refund")))
 	gold += refund
 	_remove_units([i])
 	selected = -1
@@ -284,7 +547,7 @@ func sell(i: int) -> void:
 
 
 func move_selected(s: int) -> void:
-	if selected < 0 or selected >= units.size(): return
+	if selected < 0 or selected >= units.size() or not unlocked[s]: return
 	var other := unit_at(s)
 	var from: int = units[selected]["slot"]
 	if other >= 0: units[other]["slot"] = from
@@ -334,6 +597,12 @@ func unit_damage(i: int) -> float:
 	if kin == "dokkaebi" and syn_level("dokkaebi") >= 2: dmg *= 1.25
 	if kin == "sugun" and syn_level("sugun") >= 3: dmg *= 1.25
 	if relics.has("cheonbuin"): dmg *= 1.1
+	dmg *= 1.0 + float(deco_fx.get("kin", {}).get(kin, 0.0))
+	if U["sp"] == "militia":
+		var n := 0
+		for u2 in units:
+			if u2["type"] == u["type"]: n += 1
+		dmg *= 1.0 + 0.06 * n
 	return dmg
 
 
@@ -341,7 +610,7 @@ func unit_range(i: int) -> float:
 	var U: Dictionary = UNITS[units[i]["type"]]
 	var r: float = U["rng"]
 	if U["kin"] == "muin": r += 0.5 * syn_level("muin")
-	return r
+	return r + fx("range")
 
 
 func unit_interval(i: int) -> float:
@@ -393,7 +662,7 @@ func boss_mult(U: Dictionary) -> float:
 	if U["sp"] == "boss": m *= 1.5
 	if relics.has("haetae_stone"): m *= 1.3
 	m *= [1.0, 1.25, 1.5, 1.9][syn_level("sinsu")]
-	return m
+	return m * (1.0 + fx("boss_dmg"))
 
 
 # ---------------- damage & traits ----------------
@@ -428,7 +697,7 @@ func _slow(e: Dictionary, t: float) -> void:
 
 
 func exec_bonus() -> float:
-	return 0.05 if syn_level("jusul") >= 2 else 0.0
+	return (0.05 if syn_level("jusul") >= 2 else 0.0) + fx("exec")
 
 
 # ---------------- MP skills ----------------
@@ -519,6 +788,12 @@ func cast(i: int) -> bool:
 					e["dispel_t"] = maxf(e["dispel_t"], S["t"])
 					_hit(e, dmg * S["m"], U)
 			art.ring(up, kc, unit_range(i) * 1.6)
+		"bounty":
+			bounty_t = S["t"]; bounty_g = int(S["g"] * lv)
+			art.ring(up, Color(1, 0.85, 0.2), 4.0)
+		"blessing":
+			blessing_n += int(S["n_t"])
+			art.pillar(up, kc, false)
 		"mp":
 			for j in range(units.size()):
 				if j != i and _flat(slot_pos(units[j]["slot"]), up) <= 2.1: units[j]["mp"] = minf(MP_MAX, units[j]["mp"] + S["amt"])
@@ -541,7 +816,7 @@ func make_cards() -> void:
 	cards.clear()
 	var opts := []
 	for t in BASE_KEYS:
-		if not pool.has(t): opts.append({"kind": "add", "key": t})
+		if not pool.has(t) and unit_unlocked(t): opts.append({"kind": "add", "key": t})
 	if pool.size() > 3:
 		for t in pool: opts.append({"kind": "remove", "key": t})
 	for r in RELICS:
@@ -589,7 +864,7 @@ func act_of(w: int) -> int:
 
 func wave_roster(w: int) -> Array:
 	# enemy keys of a normal wave: each act introduces its 4 yokai one by one, then mixes them
-	var r: Array = ACTS[act_of(w)]["roster"]
+	var r: Array = act_roster[act_of(w)]
 	match (w - 1) % WAVES_PER_ACT:
 		0, 1: return [r[0]]
 		2: return [r[1]]
@@ -606,7 +881,7 @@ func is_boss_wave(w: int) -> bool:
 
 
 func per_wave(w: int) -> int:
-	return 20 + 2 * act_of(w)
+	return 20 + 2 * act_of(w) + int(D.DIFFS[diff_key]["count"])
 
 
 func start_wave() -> void:
@@ -614,7 +889,7 @@ func start_wave() -> void:
 	wave_t = WAVE_TIME
 	manpa_done = false
 	if is_boss_wave(wave):
-		var bk: String = ACTS[act_of(wave)]["boss"]
+		var bk: String = act_boss[act_of(wave)]
 		_spawn_enemy(bk, false, 0.0)
 		boss_alive = true
 		boss_timer = WAVE_TIME * (2.4 if wave < LAST_WAVE else 3.2)
@@ -635,12 +910,12 @@ func enemy_hp() -> float:
 func _spawn_enemy(key: String, child: bool, at_d: float) -> void:
 	var E: Dictionary = ENEMIES[key]
 	var boss: bool = E.get("boss", false)
-	var hp: float = enemy_hp() * E["hp"] * (0.3 if child else 1.0)
+	var hp: float = enemy_hp() * E["hp"] * (0.3 if child else 1.0) * (D.DIFFS[diff_key]["boss"] if boss else 1.0)
 	var tr: Array = E["tr"]
-	var e := {"key": key, "hp": hp, "maxhp": hp, "d": at_d, "speed": (1.6 if boss else 2.4) * E["spd"] * (0.88 if relics.has("jangseung") else 1.0),
+	var e := {"key": key, "hp": hp, "maxhp": hp, "d": at_d, "speed": (1.6 if boss else 2.4) * E["spd"] * (0.88 if relics.has("jangseung") else 1.0) * (1.0 + fx("espeed")),
 		"slow_t": 0.0, "stun_t": 0.0, "boss": boss, "tr": tr, "armor": enemy_hp() * 0.12 * (1.0 if not boss else 3.0) if tr.has("armor") else 0.0,
 		"age": rng.randf() * 4.0 if tr.has("stealth") else 0.0, "child": child, "shielded": false, "summon_t": 6.0,
-		"dispel_t": 0.0, "lap": 0, "node": null, "bar": null, "segs": [], "hit": 0.0}
+		"dispel_t": 0.0, "lap": 0, "hex_t": 3.0 + rng.randf() * 3.0, "revived": false, "node": null, "bar": null, "segs": [], "hit": 0.0}
 	if boss and relics.has("jeokpae"): e["hp"] = hp * 0.85
 	if not seen_enemies.has(key): seen_enemies.append(key)
 	var look := art.make_enemy(E["look"], boss)
@@ -680,8 +955,12 @@ func _flat(a: Vector3, b: Vector3) -> float:
 
 # ---------------- simulation step ----------------
 func step(dt: float) -> void:
+	if not started:
+		if headless: start_game()
+		else: return
 	if over or choosing: return
 	if wave == 0: start_wave()
+	bounty_t = maxf(0.0, bounty_t - dt)
 	wave_t -= dt
 	if to_spawn > 0:
 		spawn_t -= dt
@@ -691,7 +970,7 @@ func step(dt: float) -> void:
 			if ENEMIES[sk]["tr"].has("swarm"): _spawn_enemy(sk, false, 0.0)
 			spawn_i += 1; to_spawn -= 1; spawn_t = SPAWN_GAP
 	if wave_t <= 0 and wave < LAST_WAVE and not (boss_alive and wave >= LAST_WAVE):
-		gold += 15 + wave * 2 + (12 if relics.has("yeopjeon") else 0)
+		gold += int((15 + wave * 2) * D.DIFFS[diff_key]["gold"]) + (12 if relics.has("yeopjeon") else 0) + int(fx("wave_gold"))
 		if wave % 2 == 0:
 			make_cards()
 			return
@@ -703,11 +982,11 @@ func step(dt: float) -> void:
 	if boss_alive:
 		boss_timer -= dt
 		if boss_timer <= 0:
-			over = true; lose_reason = "보스를 시간 안에 처치하지 못했습니다."; msg = "패배: " + lose_reason
+			_end_run(false, "보스를 시간 안에 처치하지 못했습니다.")
 			return
 	_enemies_step(dt)
-	if enemies.size() > MAX_ALIVE:
-		over = true; lose_reason = "요괴가 %d마리를 넘었습니다." % MAX_ALIVE; msg = "패배: " + lose_reason
+	if enemies.size() > max_alive:
+		_end_run(false, "요괴가 %d마리를 넘었습니다." % max_alive)
 		return
 	_units_step(dt)
 	_deaths()
@@ -745,6 +1024,18 @@ func _enemies_step(dt: float) -> void:
 		e["slow_t"] = maxf(0.0, e["slow_t"] - dt)
 		e["stun_t"] = maxf(0.0, e["stun_t"] - dt)
 		e["dispel_t"] = maxf(0.0, e["dispel_t"] - dt)
+		if e["tr"].has("hex") and e["dispel_t"] <= 0.0:
+			e["hex_t"] -= dt
+			if e["hex_t"] <= 0.0:
+				e["hex_t"] = 6.0
+				var best := -1
+				var bd := 3.0
+				for j in range(units.size()):
+					var dj := _flat(slot_pos(units[j]["slot"]), e["node"].position)
+					if dj < bd: bd = dj; best = j
+				if best >= 0:
+					units[best]["cd"] = maxf(units[best]["cd"], 2.0)
+					_float("빙의!", slot_pos(units[best]["slot"]) + Vector3(0, 2.0, 0), Color(0.8, 0.6, 1.0))
 		if e["tr"].has("regen") and e["dispel_t"] <= 0.0: e["hp"] = minf(e["maxhp"], e["hp"] + e["maxhp"] * (0.006 if e["boss"] else 0.025) * dt)
 		if e["boss"] and bp == "summon":
 			e["summon_t"] -= dt
@@ -772,7 +1063,9 @@ func _units_step(dt: float) -> void:
 	var slow_t := 1.5 * (1.5 if syn_level("jusul") >= 1 else 1.0)
 	var plague_at := []
 	for e in enemies:
-		if e["tr"].has("plague") and e["dispel_t"] <= 0.0 and e["hp"] > 0.0: plague_at.append(e["node"].position)
+		if e["dispel_t"] > 0.0 or e["hp"] <= 0.0: continue
+		if e["tr"].has("plague"): plague_at.append([e["node"].position, 2.5])
+		if e["tr"].has("drought"): plague_at.append([e["node"].position, 4.5])
 	for i in range(units.size()):
 		var u: Dictionary = units[i]
 		var U: Dictionary = UNITS[u["type"]]
@@ -780,11 +1073,13 @@ func _units_step(dt: float) -> void:
 		var upos: Vector3 = slot_pos(u["slot"])
 		u["plagued"] = false
 		for pp in plague_at:
-			if _flat(pp, upos) <= 2.5:
-				u["plagued"] = true; break
+			if _flat(pp[0], upos) <= pp[1]:
+				u["plagued"] = true
+				if pp[1] > 3.0: u["buff_t"] = 0.0
+				break
 		var skill := has_skill(i)
 		if skill:
-			u["mp"] = minf(MP_MAX, u["mp"] + 3.0 * (2.0 if relics.has("angbu") else 1.0) * dt)
+			u["mp"] = minf(MP_MAX, u["mp"] + 3.0 * (2.0 if relics.has("angbu") else 1.0) * (1.0 + fx("mp_regen")) * dt)
 			if u["mp"] >= MP_MAX and u["auto"]: cast(i)
 		u["cd"] -= dt
 		if u["cd"] > 0: continue
@@ -834,7 +1129,13 @@ func _deaths() -> void:
 	for k in range(enemies.size() - 1, -1, -1):
 		var e4: Dictionary = enemies[k]
 		if e4["hp"] > 0: continue
-		var g: int = (40 if e4["boss"] else (1 if e4["child"] else 3)) + kill_bonus
+		if e4["tr"].has("revive") and not e4["revived"] and e4["dispel_t"] <= 0.0:
+			e4["revived"] = true
+			e4["hp"] = e4["maxhp"] * 0.5
+			_float("부활!", e4["node"].position + Vector3(0, 1.6, 0), Color(0.6, 1.0, 0.6))
+			continue
+		var g: int = (40 if e4["boss"] else (1 if e4["child"] else 3)) + kill_bonus + (bounty_g if bounty_t > 0.0 else 0)
+		if e4["boss"] and ENEMIES[e4["key"]].get("bp", "") == "goldpig": g += 100
 		gold += g
 		kills += 1
 		_float("+%d" % g, e4["node"].position + Vector3(0, 1.2, 0), Color(1, 0.9, 0.3))
@@ -844,10 +1145,11 @@ func _deaths() -> void:
 		var split: bool = e4["tr"].has("split") and not e4["child"]
 		var boss_split: bool = e4["boss"] and ENEMIES[key].get("bp", "") == "split"
 		if e4["boss"]:
-			boss_alive = false; msg = "%s 처치! +40골드" % ENEMIES[key]["n"]
+			boss_alive = false; msg = "%s 처치! +%d골드" % [ENEMIES[key]["n"], g]
+			bosses_killed += 1
 			for sgm in e4["segs"]: sgm.queue_free()
 			if wave >= LAST_WAVE:
-				over = true; won = true; msg = "승리! %s을(를) 물리쳤습니다." % ENEMIES[key]["n"]
+				_end_run(true, "최종 보스 %s 격퇴!" % ENEMIES[key]["n"])
 		e4["node"].queue_free()
 		enemies.remove_at(k)
 		if split:
@@ -877,8 +1179,26 @@ func _process(delta: float) -> void:
 
 # ---------------- input ----------------
 func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and (e.button_index == MOUSE_BUTTON_RIGHT or e.button_index == MOUSE_BUTTON_MIDDLE):
+		drag_btn = e.button_index if e.pressed else 0
+		return
+	if e is InputEventMouseButton and e.pressed and (e.button_index == MOUSE_BUTTON_WHEEL_UP or e.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		if not show_codex: zoom_cam(0.9 if e.button_index == MOUSE_BUTTON_WHEEL_UP else 1.1)
+		return
+	if e is InputEventMagnifyGesture:
+		zoom_cam(1.0 / e.factor)
+		return
+	if e is InputEventPanGesture:
+		cam_target += Vector3(e.delta.x, 0, e.delta.y) * cam_dist * 0.02
+		_update_cam()
+		return
 	if e is InputEventMouseMotion:
 		hover_btn = _btn_at(_hud_pos(e.position))
+		if drag_btn == MOUSE_BUTTON_RIGHT:
+			cam_target -= Vector3(e.relative.x, 0, e.relative.y) * cam_dist * 0.0022
+			_update_cam()
+		elif drag_btn == MOUSE_BUTTON_MIDDLE:
+			zoom_cam(1.0 + e.relative.y * 0.006)
 	elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 		var hp := _hud_pos(e.position)
 		var bi := _btn_at(hp)
@@ -891,12 +1211,23 @@ func _unhandled_input(e: InputEvent) -> void:
 		var o := cam.project_ray_origin(e.position)
 		var d := cam.project_ray_normal(e.position)
 		var p := o + d * ((0.3 - o.y) / d.y)
+		if not started:
+			for i in range(D.DECO_SPOTS.size()):
+				if _flat(D.DECO_SPOTS[i], p) < 1.3:
+					click_spot(i); return
+			return
 		var hit_slot := -1
 		for s in range(COLS * ROWS):
 			var sp := slot_pos(s)
 			if absf(p.x - sp.x) < 0.9 and absf(p.z - sp.z) < 0.9: hit_slot = s
 		if hit_slot < 0:
-			selected = -1; return
+			selected = -1; sel_slot = -1; return
+		if not unlocked[hit_slot]:
+			selected = -1
+			sel_slot = hit_slot
+			msg = "닫힌 칸입니다. '칸 열기'(B)로 %d골드에 열 수 있습니다." % slot_cost()
+			return
+		sel_slot = -1
 		var ui := unit_at(hit_slot)
 		if ui >= 0 and ui != selected:
 			selected = ui
@@ -905,15 +1236,21 @@ func _unhandled_input(e: InputEvent) -> void:
 		else:
 			selected = -1
 	elif e is InputEventKey and e.pressed and not e.echo:
+		if not started and (e.keycode == KEY_ENTER or e.keycode == KEY_KP_ENTER):
+			start_game(); return
 		match e.keycode:
 			KEY_Q: summon()
 			KEY_W:
 				if not merge(selected): craft(selected)
 			KEY_E: craft(selected)
 			KEY_F: cast(selected)
+			KEY_B: unlock_slot(sel_slot)
+			KEY_Z: reset_cam()
+			KEY_EQUAL, KEY_KP_ADD: zoom_cam(0.9)
+			KEY_MINUS, KEY_KP_SUBTRACT: zoom_cam(1.1)
 			KEY_T: toggle_auto(selected)
 			KEY_C: show_codex = not show_codex
-			KEY_TAB: codex_tab = (codex_tab + 1) % 6
+			KEY_TAB: codex_tab = (codex_tab + 1) % 8
 			KEY_SPACE: speed = 0 if speed > 0 else 1
 			KEY_1: speed = 1
 			KEY_2: speed = 2
@@ -949,9 +1286,12 @@ func _build_buttons() -> void:
 		_btn("건너뛰기 (+20골드)", Rect2(160, 270, 120, 18), pick_card.bind(-1), true)
 		return
 	if show_codex:
-		var tabs := ["유닛 1", "유닛 2", "영웅", "요괴 1", "요괴 2", "시너지"]
+		var tabs := ["유닛 1", "유닛 2", "유닛 3", "영웅", "요괴 1", "요괴 2", "요괴 3", "시너지"]
 		for k in range(tabs.size()):
-			_btn(tabs[k], Rect2(14 + k * 50, 46, 47, 16), func(): codex_tab = k, true, codex_tab == k)
+			_btn(tabs[k], Rect2(14 + k * 51, 46, 48, 16), func(): codex_tab = k, true, codex_tab == k)
+		return
+	if not started:
+		_build_prep_buttons()
 		return
 	var x := 434.0
 	var y := 64.0
@@ -983,10 +1323,54 @@ func _build_buttons() -> void:
 	y += 18
 	_btn("다시 시작 (R)", Rect2(x, y, 98, 15), func(): get_tree().reload_current_scene(), true)
 	_btn("메뉴 (M)", Rect2(x + 102, y, 98, 15), func(): get_tree().change_scene_to_file("res://scenes/main.tscn"), true)
+	if sel_slot >= 0 and not unlocked[sel_slot]:
+		_btn("칸 열기 (%d골드) [B]" % slot_cost(), Rect2(x + 4, 336, 192, 16), func(): unlock_slot(sel_slot), gold >= slot_cost() and not over, true, "무대 확장: 이 칸을 열어 유닛을 더 놓습니다.\n열 때마다 값이 40골드씩 오릅니다.")
 	if sel_ok and has_skill(selected):
 		var u: Dictionary = units[selected]
 		_btn("스킬 시전 [F]", Rect2(x + 4, 336, 96, 16), func(): cast(selected), u["mp"] >= MP_MAX, u["mp"] >= MP_MAX)
 		_btn("자동" if u["auto"] else "수동", Rect2(x + 104, 336, 92, 16), func(): toggle_auto(selected), true, u["auto"], "자동: MP가 차면 바로 시전.\n수동: MP를 모아 두었다가 원하는 때 F로 시전 (보스 등).\n단축키 T.")
+
+
+func _build_prep_buttons() -> void:
+	var x := 434.0
+	var k := 0
+	for dk in D.DIFF_KEYS:
+		var Df: Dictionary = D.DIFFS[dk]
+		_btn(Df["n"], Rect2(x + k * 68, 30, 64, 18), set_difficulty.bind(dk), true, diff_key == dk, Df["d"] + "\n엽전 보상 ×%.1f" % Df["yeop"])
+		k += 1
+	_btn("판 시작  [Enter]", Rect2(x, 76, 200, 22), start_game, true, true, "선택한 난이도로 50웨이브를 시작합니다.\n막마다 나오는 요괴와 보스는 판마다 바뀝니다.")
+	_btn("마을 꾸미기", Rect2(x, 104, 98, 16), func(): prep_tab = 0, true, prep_tab == 0)
+	_btn("해금", Rect2(x + 102, 104, 98, 16), func(): prep_tab = 1, true, prep_tab == 1)
+	var y := 124.0
+	var yeop := int(profile["yeop"])
+	if prep_tab == 0:
+		var col := 0
+		for dk in D.DECO_KEYS:
+			var De: Dictionary = D.DECOS[dk]
+			var label: String = De["n"]
+			if deco_placed_at(dk) != "": label += " ✓"
+			elif deco_owned(dk): label += " (보관)"
+			else: label += " %d" % De["cost"]
+			_btn(label, Rect2(x + col * 102, y, 98, 15), click_deco.bind(dk), deco_owned(dk) or yeop >= De["cost"], deco_sel == dk, De["d"] + ("\n\n보유: 클릭 후 마을 빈 자리 클릭으로 배치." if deco_owned(dk) else "\n\n클릭하면 엽전 %d로 구입." % De["cost"]))
+			col += 1
+			if col == 2:
+				col = 0; y += 17
+	else:
+		var ns := int(profile["start_slots"])
+		_btn("시작 칸 +1 (지금 +%d) %d" % [ns, meta_cost("start_slots")], Rect2(x, y, 200, 15), buy_meta.bind("start_slots"), ns < EXTRA_SLOTS.size() and yeop >= meta_cost("start_slots"), false, "판을 시작할 때 열려 있는 칸이 하나 늘어납니다 (영구).")
+		y += 17
+		var nsp := int(profile["spots"])
+		_btn("꾸밈 자리 +1 (%d/%d) %d" % [nsp, D.DECO_SPOTS.size(), meta_cost("spots")], Rect2(x, y, 200, 15), buy_meta.bind("spots"), nsp < D.DECO_SPOTS.size() and yeop >= meta_cost("spots"), false, "마을에 장식을 놓을 자리가 하나 늘어납니다.")
+		y += 20
+		var col2 := 0
+		for t in BASE_KEYS:
+			if not UNITS[t].get("lock", false): continue
+			var U: Dictionary = UNITS[t]
+			var have := unit_unlocked(t)
+			_btn(("%s ✓" % U["n"]) if have else ("%s %d" % [U["n"], U["price"]]), Rect2(x + col2 * 102, y, 98, 15), buy_unit.bind(t), not have and yeop >= U["price"], have, "[%s] %s\n스킬 %s: %s" % [KINS[U["kin"]][0], U["d"], U["sk"]["n"], U["sk"]["d"]])
+			col2 += 1
+			if col2 == 2:
+				col2 = 0; y += 17
 
 
 func _pool_text() -> String:
@@ -1006,7 +1390,7 @@ func _traits_text(key: String) -> String:
 func _wave_text(w: int) -> String:
 	if w < 1 or w > LAST_WAVE: return ""
 	if is_boss_wave(w):
-		var bk: String = ACTS[act_of(w)]["boss"]
+		var bk: String = act_boss[act_of(w)]
 		return "보스 %s %s" % [ENEMIES[bk]["n"], _traits_text(bk)]
 	var parts := []
 	for k in wave_roster(w):
@@ -1032,7 +1416,7 @@ func _draw_hud() -> void:
 	var c := hud
 	# top-left: pool, relics, kin synergy
 	c.draw_rect(Rect2(4, 4, 420, 46), Color(0.03, 0.04, 0.08, 0.75))
-	c.draw_string(font, Vector2(10, 17), "소환 풀: " + _pool_text(), HORIZONTAL_ALIGNMENT_LEFT, 410, 10, Color(0.95, 0.9, 0.75))
+	c.draw_string(font, Vector2(10, 17), "[%s] 소환 풀: %s" % [D.DIFFS[diff_key]["n"], _pool_text()], HORIZONTAL_ALIGNMENT_LEFT, 410, 10, Color(0.95, 0.9, 0.75))
 	var rn := []
 	for r in relics: rn.append(RELICS[r][0])
 	c.draw_string(font, Vector2(10, 30), "유물: " + (", ".join(rn) if not rn.is_empty() else "없음"), HORIZONTAL_ALIGNMENT_LEFT, 410, 9, Color(0.8, 0.85, 1.0))
@@ -1062,11 +1446,14 @@ func _draw_hud() -> void:
 		if full and not u["auto"]: c.draw_string(font, bp + Vector2(15, 5), "F", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 0.9, 0.3))
 	# right panel
 	c.draw_rect(Rect2(430, 0, 210, 360), Color(0.03, 0.04, 0.08, 0.85))
+	if not started:
+		_draw_prep()
+		return
 	c.draw_string(font, Vector2(434, 18), "웨이브 %d / %d" % [wave, LAST_WAVE], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1))
 	if wave > 0: c.draw_string(font, Vector2(530, 16), ACTS[act_of(wave)]["n"], HORIZONTAL_ALIGNMENT_LEFT, 106, 9, Color(0.85, 0.6, 1.0))
 	c.draw_string(font, Vector2(434, 36), "골드 %d" % gold, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.85, 0.3))
-	var danger := float(enemies.size()) / MAX_ALIVE
-	c.draw_string(font, Vector2(434, 54), "요괴 %d / %d" % [enemies.size(), MAX_ALIVE], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1 - danger, 1 - danger))
+	var danger := float(enemies.size()) / max_alive
+	c.draw_string(font, Vector2(434, 54), "요괴 %d / %d" % [enemies.size(), max_alive], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1 - danger, 1 - danger))
 	c.draw_rect(Rect2(530, 46, 100, 8), Color(0.2, 0.2, 0.25))
 	c.draw_rect(Rect2(530, 46, 100 * minf(1, danger), 8), Color(1, 0.3, 0.2))
 	c.draw_string(font, Vector2(530, 32), "다음 웨이브 %.0f초" % maxf(0, wave_t), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.8, 0.8, 0.9))
@@ -1103,7 +1490,8 @@ func _draw_hud() -> void:
 	if over:
 		c.draw_rect(Rect2(60, 140, 320, 60), Color(0, 0, 0, 0.8))
 		c.draw_string(font, Vector2(60, 168), "승리!" if won else "패배", HORIZONTAL_ALIGNMENT_CENTER, 320, 22, Color(1, 0.9, 0.4))
-		c.draw_string(font, Vector2(60, 190), lose_reason if not won else "처치 %d마리 · 영웅 %d명 발견" % [kills, discovered.size()], HORIZONTAL_ALIGNMENT_CENTER, 320, 10, Color(1, 1, 1))
+		c.draw_string(font, Vector2(60, 186), lose_reason if not won else "처치 %d마리 · 영웅 %d명 발견" % [kills, discovered.size()], HORIZONTAL_ALIGNMENT_CENTER, 320, 10, Color(1, 1, 1))
+		c.draw_string(font, Vector2(60, 198), "엽전 +%d (보유 %d) · R: 마을로" % [yeop_earned, int(profile["yeop"])], HORIZONTAL_ALIGNMENT_CENTER, 320, 9, Color(1, 0.85, 0.3))
 	if hover_btn >= 0 and hover_btn < btns.size() and String(btns[hover_btn]["tip"]) != "" and not choosing:
 		var tip: String = btns[hover_btn]["tip"]
 		var sz := font.get_multiline_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, 196, 10)
@@ -1112,6 +1500,38 @@ func _draw_hud() -> void:
 		c.draw_rect(box, Color(0.05, 0.06, 0.10, 0.97))
 		c.draw_rect(box, Color(1, 0.85, 0.4), false, 1.2)
 		c.draw_multiline_string(font, box.position + Vector2(7, 15), tip, HORIZONTAL_ALIGNMENT_LEFT, 196, 10, -1, Color(0.95, 0.95, 1))
+
+
+func _draw_prep() -> void:
+	var c := hud
+	c.draw_string(font, Vector2(434, 18), "준비 — 마을", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1))
+	c.draw_string(font, Vector2(540, 18), "엽전 %d" % int(profile["yeop"]), HORIZONTAL_ALIGNMENT_LEFT, 96, 12, Color(1, 0.85, 0.3))
+	var best: Dictionary = profile["best"]
+	var Df: Dictionary = D.DIFFS[diff_key]
+	c.draw_multiline_string(font, Vector2(434, 58), "%s  (최고 %d웨이브)" % [Df["d"], int(best.get(diff_key, 0))], HORIZONTAL_ALIGNMENT_LEFT, 200, 8, 2, Color(0.8, 0.8, 0.9))
+	for i in range(btns.size()): _draw_btn(i)
+	var np: int = profile["placed"].size()
+	c.draw_string(font, Vector2(434, 352), "꾸밈 %d/%d자리 · 판 수 %d" % [np, int(profile["spots"]), int(profile["runs"])], HORIZONTAL_ALIGNMENT_LEFT, 200, 9, Color(0.7, 0.75, 0.85))
+	# spot labels in the world
+	for i in range(D.DECO_SPOTS.size()):
+		var sp := _proj(D.DECO_SPOTS[i] + Vector3(0, 0.3, 0))
+		var key := str(i)
+		var txt := ""
+		if i >= int(profile["spots"]): txt = "닫힘"
+		elif profile["placed"].has(key): txt = D.DECOS[profile["placed"][key]]["n"]
+		else: txt = "빈 자리"
+		c.draw_string(font, sp + Vector2(-40, 14), txt, HORIZONTAL_ALIGNMENT_CENTER, 80, 8, Color(0.9, 1, 0.85) if i < int(profile["spots"]) else Color(0.6, 0.6, 0.65))
+	c.draw_rect(Rect2(4, 334, 420, 22), Color(0.03, 0.04, 0.08, 0.8))
+	c.draw_string(font, Vector2(10, 349), msg, HORIZONTAL_ALIGNMENT_LEFT, 410, 10, Color(1, 1, 1))
+	if hover_btn >= 0 and hover_btn < btns.size() and String(btns[hover_btn]["tip"]) != "":
+		var tip: String = btns[hover_btn]["tip"]
+		var sz := font.get_multiline_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, 196, 10)
+		var r4: Rect2 = btns[hover_btn]["r"]
+		var box := Rect2(r4.position.x - 216, clampf(r4.position.y, 4, 350 - sz.y), 210, sz.y + 14)
+		c.draw_rect(box, Color(0.05, 0.06, 0.10, 0.97))
+		c.draw_rect(box, Color(1, 0.85, 0.4), false, 1.2)
+		c.draw_multiline_string(font, box.position + Vector2(7, 15), tip, HORIZONTAL_ALIGNMENT_LEFT, 196, 10, -1, Color(0.95, 0.95, 1))
+	if show_codex: _draw_codex()
 
 
 func _draw_cards() -> void:
@@ -1141,33 +1561,34 @@ func _draw_codex() -> void:
 	var yy := 76.0
 	var ekeys: Array = ENEMIES.keys()
 	match codex_tab:
-		0, 1:
+		0, 1, 2:
 			for t in BASE_KEYS.slice(codex_tab * 12, codex_tab * 12 + 12):
 				var U2: Dictionary = UNITS[t]
-				c.draw_string(font, Vector2(18, yy), "%s [%s]%s" % [U2["n"], KINS[U2["kin"]][0], " ●" if pool.has(t) else ""], HORIZONTAL_ALIGNMENT_LEFT, 120, 9, KINS[U2["kin"]][1].lightened(0.3))
+				var tag := " ●" if pool.has(t) else ("" if unit_unlocked(t) else " (잠김)")
+				c.draw_string(font, Vector2(18, yy), "%s [%s]%s" % [U2["n"], KINS[U2["kin"]][0], tag], HORIZONTAL_ALIGNMENT_LEFT, 120, 9, KINS[U2["kin"]][1].lightened(0.3))
 				c.draw_string(font, Vector2(130, yy), U2["d"], HORIZONTAL_ALIGNMENT_LEFT, 290, 8, Color(0.88, 0.88, 0.93))
 				yy += 10
 				if U2.has("sk"):
 					c.draw_string(font, Vector2(130, yy), "스킬 %s: %s" % [U2["sk"]["n"], U2["sk"]["d"]], HORIZONTAL_ALIGNMENT_LEFT, 290, 8, Color(0.6, 0.75, 1.0))
 				yy += 11
 				if yy > 322: break
-		2:
+		3:
 			c.draw_string(font, Vector2(18, yy), "레시피 (각 재료는 희귀 등급 이상) — 발견 %d/%d" % [discovered.size(), HERO_KEYS.size()], HORIZONTAL_ALIGNMENT_LEFT, 400, 10, Color(1, 0.88, 0.5))
 			yy += 14
 			for hk in HERO_KEYS:
 				var H: Dictionary = UNITS[hk]
 				var rec_names := []
 				for r3 in H["rec"]: rec_names.append(UNITS[r3]["n"])
-				c.draw_string(font, Vector2(18, yy), "%s%s = %s" % ["★ " if discovered.has(hk) else "", H["n"], " + ".join(rec_names)], HORIZONTAL_ALIGNMENT_LEFT, 400, 9, Color(1, 0.85, 0.4) if discovered.has(hk) else Color(0.85, 0.85, 0.9))
-				yy += 11
-				c.draw_string(font, Vector2(30, yy), H["d"] + ("  스킬 " + H["sk"]["n"] if H.has("sk") else ""), HORIZONTAL_ALIGNMENT_LEFT, 390, 8, Color(0.7, 0.7, 0.78))
-				yy += 12
+				c.draw_string(font, Vector2(18, yy), "%s%s [%s] = %s" % ["★ " if discovered.has(hk) else "", H["n"], KINS[H["kin"]][0], " + ".join(rec_names)], HORIZONTAL_ALIGNMENT_LEFT, 400, 9, Color(1, 0.85, 0.4) if discovered.has(hk) else Color(0.85, 0.85, 0.9))
+				yy += 10
+				c.draw_string(font, Vector2(30, yy), "스킬 %s: %s" % [H["sk"]["n"], H["sk"]["d"]], HORIZONTAL_ALIGNMENT_LEFT, 390, 8, Color(0.62, 0.72, 0.95))
+				yy += 9
 				if yy > 322: break
-		3, 4:
+		4, 5, 6:
 			c.draw_string(font, Vector2(18, yy), "요괴 도감 — 만난 요괴 %d / %d" % [seen_enemies.size(), ENEMIES.size()], HORIZONTAL_ALIGNMENT_LEFT, 400, 10, Color(1, 0.88, 0.5))
 			yy += 14
-			var half := (ekeys.size() + 1) / 2
-			for k in ekeys.slice((codex_tab - 3) * half, (codex_tab - 3) * half + half):
+			var third := (ekeys.size() + 2) / 3
+			for k in ekeys.slice((codex_tab - 4) * third, (codex_tab - 4) * third + third):
 				var E: Dictionary = ENEMIES[k]
 				var known := seen_enemies.has(k)
 				var line: String = ("%s%s %s — %s (%s)" % ["[보스] " if E.get("boss", false) else "", E["n"], _traits_text(k), E["d"], E["src"]]) if known else "??? (아직 만나지 않음)"
@@ -1177,7 +1598,7 @@ func _draw_codex() -> void:
 			var tips := []
 			for t in D.TRAIT_TIPS: tips.append("%s: %s" % [D.TRAIT_NAMES[t], D.TRAIT_TIPS[t]])
 			c.draw_multiline_string(font, Vector2(18, maxf(yy, 250)), "  ".join(tips), HORIZONTAL_ALIGNMENT_LEFT, 400, 8, 6, Color(0.65, 0.65, 0.72))
-		5:
+		7:
 			c.draw_string(font, Vector2(18, yy), "계열 시너지 — 필드 위 같은 계열 %s명" % "/".join(D.SYN_STEPS.map(func(x): return str(x))), HORIZONTAL_ALIGNMENT_LEFT, 400, 10, Color(1, 0.88, 0.5))
 			yy += 14
 			for kin in D.SYN:

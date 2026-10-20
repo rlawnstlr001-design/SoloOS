@@ -13,7 +13,9 @@ const PROJ := {
 	"gwigyo": "talisman", "samjogo": "roar", "hyeonmu": "water", "hwarang": "arrow", "seungbyeong": "bell", "agijangsu": "arrow",
 	"cheoyong": "bell", "pansu": "talisman", "bari": "water", "cheoyongrang": "bell", "jeonuchi": "talisman", "honggildong": "arrow",
 	"baksi": "talisman", "mago": "roar", "hwalbin": "arrow", "panokseon": "bullet", "geobukseon": "bullet", "yongwang": "water",
-	"tongjesa": "bullet", "hogukryong": "water",
+	"tongjesa": "bullet", "hogukryong": "water", "yeonggam": "foxfire", "cheongryong": "foxfire", "baekho": "roar",
+	"jujak": "foxfire", "girin": "roar", "bonghwang": "foxfire", "uibyeong": "arrow", "singijeon": "arrow", "gaema": "club",
+	"uinyeo": "talisman", "samsin": "talisman", "jacheongbi": "water", "sasin": "foxfire", "seungjang": "bell",
 }
 
 var root: Node3D
@@ -22,6 +24,7 @@ var mats := {}
 var meshes := {}
 var vrng := RandomNumberGenerator.new()
 var anims: Array = []    # ambient loops: {node, kind, base, ph, sp, amp}
+var slot_nodes: Array = []  # [base, top] per board cell
 var effects: Array = []  # short-lived: {node, kind, t, life, vel}
 
 
@@ -144,7 +147,7 @@ func _anim(n: Node3D, kind: String, sp: float, amp: float) -> void:
 
 
 # ---------------- world ----------------
-func build_world(corners: Array, slots: Array) -> void:
+func build_world(corners: Array, slots: Array, open: Array) -> void:
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -169,30 +172,30 @@ func build_world(corners: Array, slots: Array) -> void:
 	root.add_child(moon)
 	# ground: grass outside, packed-earth yard (마당) inside the track
 	part(root, box(Vector3(70, 0.4, 50)), mat(Color(0.16, 0.26, 0.17)), Vector3(0, -0.21, -3))
-	part(root, box(Vector3(14.6, 0.02, 8.6)), mat(Color(0.42, 0.36, 0.27)), Vector3(0, 0.005, 0))
+	var c2: Vector3 = corners[2]
+	part(root, box(Vector3(absf(c2.x) * 2.0 - 1.4, 0.02, absf(c2.z) * 2.0 - 1.4)), mat(Color(0.42, 0.36, 0.27)), Vector3(0, 0.005, 0))
 	for k in range(4):
 		var a: Vector3 = corners[k]; var b: Vector3 = corners[(k + 1) % 4]
 		part(root, box(Vector3(absf(b.x - a.x) + 1.4, 0.04, absf(b.z - a.z) + 1.4)), mat(Color(0.31, 0.26, 0.21)), (a + b) / 2.0 + Vector3(0, 0.02, 0))
 	_track_stones(corners)
 	_grass(corners)
-	for s in slots: _slot_stone(s)
+	for i in range(slots.size()):
+		_slot_stone(slots[i])
+		set_slot_locked(i, not open[i])
 	_gate(corners[0])
 	_portal(corners[0])
 	# village dressing (kept off the track and away from the HUD panel)
-	_giwa_house(Vector3(-10.5, 0, -9.0), 0.0)
-	_choga_house(Vector3(-5.6, 0, -9.4), 0.15)
-	_choga_house(Vector3(-1.2, 0, -9.2), -0.1)
-	_giwa_house(Vector3(4.0, 0, -9.3), 0.05)
-	_choga_house(Vector3(9.0, 0, -9.0), 0.2)
-	for p in [Vector3(-12.5, 0, -4.5), Vector3(-13.2, 0, 1.0), Vector3(-11.6, 0, 4.6), Vector3(-14.5, 0, -1.8), Vector3(11.8, 0, -6.6), Vector3(-7.8, 0, -12.0), Vector3(1.6, 0, -12.4)]:
+	_giwa_house(Vector3(-11.5, 0, -10.6), 0.0)
+	_choga_house(Vector3(-6.4, 0, -10.9), 0.15)
+	_choga_house(Vector3(-1.6, 0, -10.7), -0.1)
+	_giwa_house(Vector3(3.6, 0, -10.8), 0.05)
+	_choga_house(Vector3(8.8, 0, -10.6), 0.2)
+	for p in [Vector3(-14.0, 0, -5.5), Vector3(-14.8, 0, 2.4), Vector3(-13.2, 0, 6.8), Vector3(-16.2, 0, -1.6), Vector3(13.6, 0, -8.6), Vector3(-9.0, 0, -14.0), Vector3(1.0, 0, -14.4), Vector3(14.5, 0, 6.5)]:
 		_pine(p, 0.9 + vrng.randf() * 0.4)
-	_jangdok(Vector3(-11.2, 0, -1.4))
-	_stone_wall(Vector3(-11.5, 0, 7.4), Vector3(10.5, 0, 7.4))
-	_stone_lantern(Vector3(-3.0, 0, 7.0))
-	_stone_lantern(Vector3(3.0, 0, 7.0))
-	for p in [Vector3(9.0, 0, -6.0), Vector3(9.0, 0, 6.0), Vector3(-9.0, 0, 6.0), Vector3(0.0, 0, -6.1), Vector3(0.0, 0, 6.1)]:
+	_stone_wall(Vector3(-13.0, 0, 9.4), Vector3(12.5, 0, 9.4))
+	for p in [Vector3(10.4, 0, -7.4), Vector3(10.4, 0, 7.4), Vector3(-10.4, 0, 7.4), Vector3(0.0, 0, -7.3), Vector3(0.0, 0, 7.3)]:
 		_cheongsa_lantern(p)
-	_fireflies(26)
+	_fireflies(28)
 
 
 func _track_stones(corners: Array) -> void:
@@ -229,7 +232,7 @@ func _grass(corners: Array) -> void:
 	while xs.size() < 420 and tries < 4000:
 		tries += 1
 		var p := Vector3(vrng.randf_range(-20, 20), 0, vrng.randf_range(-15, 9))
-		if absf(p.x) < 9.0 and absf(p.z) < 6.0: continue
+		if absf(p.x) < 10.0 and absf(p.z) < 7.0: continue
 		var s := 0.7 + vrng.randf() * 0.9
 		xs.append(Transform3D(Basis(Vector3(vrng.randf() - 0.5, 0, vrng.randf() - 0.5).normalized(), vrng.randf() * 0.4).scaled(Vector3(s, s, s)), p + Vector3(0, 0.1 * s, 0)))
 	mm.instance_count = xs.size()
@@ -242,8 +245,18 @@ func _grass(corners: Array) -> void:
 
 
 func _slot_stone(p: Vector3) -> void:
-	part(root, box(Vector3(1.66, 0.12, 1.66)), mat(Color(0.2, 0.21, 0.21)), p + Vector3(0, 0.06, 0))
-	part(root, box(Vector3(1.48, 0.05, 1.48)), mat(Color(0.3, 0.31, 0.29)), p + Vector3(0, 0.14, 0))
+	var b := part(root, box(Vector3(1.66, 0.12, 1.66)), mat(Color(0.2, 0.21, 0.21)), p + Vector3(0, 0.06, 0))
+	var t := part(root, box(Vector3(1.48, 0.05, 1.48)), mat(Color(0.3, 0.31, 0.29)), p + Vector3(0, 0.14, 0))
+	slot_nodes.append([b, t])
+
+
+func set_slot_locked(i: int, locked: bool) -> void:
+	# closed cells: sunken dark stone with a dashed rim; open cells: raised slab
+	var b: MeshInstance3D = slot_nodes[i][0]
+	var t: MeshInstance3D = slot_nodes[i][1]
+	t.visible = not locked
+	b.material_override = mat(Color(0.13, 0.13, 0.15)) if locked else mat(Color(0.2, 0.21, 0.21))
+	b.scale = Vector3(1, 0.4 if locked else 1.0, 1)
 
 
 func _gate(c: Vector3) -> void:
@@ -387,8 +400,8 @@ func _cheongsa_lantern(p: Vector3) -> void:
 
 func _fireflies(n: int) -> void:
 	for k in range(n):
-		var p := Vector3(vrng.randf_range(-16, 10), vrng.randf_range(0.4, 1.8), vrng.randf_range(-11, 8))
-		if absf(p.x) < 8.5 and absf(p.z) < 5.5: p.z = -7.0 - vrng.randf() * 4.0
+		var p := Vector3(vrng.randf_range(-17, 12), vrng.randf_range(0.4, 1.8), vrng.randf_range(-12, 9))
+		if absf(p.x) < 9.5 and absf(p.z) < 6.5: p.z = -8.0 - vrng.randf() * 4.0
 		var f := part(root, sph(0.035), fx_mat(Color(0.8, 1.0, 0.45), 0.9), p)
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_anim(f, "drift", 0.4 + vrng.randf() * 0.5, 0.4)
@@ -443,6 +456,23 @@ func make_unit(t: String, tier: int, kin_c: Color, tier_c: Color, hero: bool) ->
 		"tongjesa": _human(rig, {"robe": Color(0.55, 0.12, 0.12), "top": Color(0.3, 0.28, 0.25), "sash": GOLD, "hat": "helmet", "weapon": "sword", "cape": Color(0.75, 0.1, 0.1), "scale": 1.1})
 		"yongwang": _human(rig, {"robe": Color(0.2, 0.5, 0.45), "sash": GOLD, "hat": "myeon", "hat_c": Color(0.12, 0.25, 0.3), "weapon": "talisman", "beard": true})
 		"hogukryong": _m_hogukryong(rig)
+		"yeonggam": _m_yeonggam(rig)
+		"cheongryong": _m_cheongryong(rig, false)
+		"baekho": _m_baekho(rig)
+		"jujak": _m_jujak(rig)
+		"girin": _m_girin(rig)
+		"bonghwang": _m_bonghwang(rig)
+		"uibyeong": _human(rig, {"robe": Color(0.92, 0.9, 0.84), "hat": "headband", "hat_c": Color(0.95, 0.95, 0.92), "weapon": "spear"})
+		"singijeon": _m_singijeon(rig)
+		"gaema": _m_gaema(rig)
+		"uinyeo": _human(rig, {"robe": Color(0.3, 0.45, 0.55), "top": Color(0.9, 0.85, 0.75), "hat": "bun", "weapon": "book", "w_c": Color(0.5, 0.3, 0.2)})
+		"samsin": _human(rig, {"robe": Color(0.95, 0.95, 0.92), "top": Color(0.85, 0.85, 0.82), "hat": "bun", "hat_c": Color(0.92, 0.92, 0.9), "weapon": "flower", "scale": 0.95})
+		"jacheongbi": _human(rig, {"robe": Color(0.35, 0.55, 0.35), "top": Color(0.9, 0.8, 0.4), "hat": "gat", "weapon": "flower"})
+		"sasin":
+			_m_cheongryong(rig, true)
+			var halo2 := part(rig, torus(0.65, 0.75), fx_mat(Color(1, 0.6, 0.3), 0.5), Vector3(0, 0.1, 0))
+			halo2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		"seungjang": _human(rig, {"robe": Color(0.5, 0.48, 0.45), "top": Color(0.7, 0.35, 0.2), "sash": GOLD, "hat": "satgat", "weapon": "staff", "cape": Color(0.6, 0.3, 0.15), "scale": 1.1})
 	if hero:
 		var halo := part(n, torus(0.26, 0.32), mat(GOLD, GOLD, 3.0), Vector3(0, 1.8, 0))
 		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -689,6 +719,13 @@ func make_enemy(look: String, boss: bool) -> Dictionary:
 		"foxsister": _e_foxsister(rig)
 		"segment": _e_segment(rig)
 		"daejeok": _e_daejeok(rig)
+		"songaksi": _e_songaksi(rig)
+		"mongdal": _e_mongdal(rig)
+		"haeryong": _serpent(rig, Color(0.2, 0.45, 0.8), 6, 0.24)
+		"judungi": _e_judungi(rig)
+		"gangcheol": segs = _e_gangcheol(rig)
+		"dokryong": segs = _e_dokryong(rig)
+		"goldpig": _e_goldpig(rig)
 		_: _jabgwi(rig)
 	root.add_child(n)
 	return {"node": n, "rig": rig, "segs": segs}
@@ -837,6 +874,14 @@ func _human(r: Node3D, o: Dictionary) -> void:
 			part(w, sph(0.22), mat(Color(0.5, 0.48, 0.45)), Vector3(0, 0.35, 0), Vector3.ZERO, Vector3(1.1, 0.9, 1.0))
 		"talisman":
 			part(w, box(Vector3(0.14, 0.22, 0.01)), mat(Color(0.98, 0.88, 0.4), Color(1, 0.8, 0.3), 0.6), Vector3(0, 0.2, 0.1))
+		"spear":
+			part(w, cyl(0.02, 0.02, 1.1, 5), mat(Color(0.45, 0.3, 0.18)), Vector3(0, 0.3, 0))
+			part(w, cyl(0.0, 0.05, 0.18, 4), metal(Color(0.85, 0.87, 0.9)), Vector3(0, 0.92, 0))
+		"book":
+			part(w, box(Vector3(0.22, 0.28, 0.05)), mat(o.get("w_c", Color(0.85, 0.75, 0.45))), Vector3(-0.05, 0.0, 0.08), Vector3(0, -0.4, 0))
+		"torch":
+			part(w, cyl(0.025, 0.03, 0.6, 5), mat(Color(0.45, 0.3, 0.18)), Vector3(0, 0.2, 0))
+			part(w, cyl(0.0, 0.08, 0.2, 6), mat(Color(1, 0.55, 0.15), Color(1, 0.5, 0.1), 2.5, 0.85), Vector3(0, 0.6, 0))
 
 
 func _ghost_wisps(r: Node3D, c: Color, n: int) -> void:
@@ -1126,6 +1171,260 @@ func _e_daejeok(r: Node3D) -> void:
 		for sx in [-1.0, 1.0]: part(r, sph(0.04), mat(Color(1, 0.2, 0.2), Color(1, 0.2, 0.2), 3.0), hp + Vector3(sx * 0.08, 0.05, 0.2))
 		part(r, cyl(0.0, 0.05, 0.2, 5), mat(Color(0.9, 0.85, 0.7)), hp + Vector3(0, 0.25, 0))
 	for sx in [-1.0, 1.0]: part(r, cyl(0.12, 0.16, 0.55, 6), mat(c.darkened(0.2)), Vector3(sx * 0.35, 0.25, 0))
+
+
+# ---------------- village decorations (마을 꾸미기) ----------------
+func build_deco_spots(spots: Array) -> Array:
+	var out: Array = []
+	for p in spots:
+		var m := node(root, p + Vector3(0, 0.03, 0))
+		var ring := part(m, torus(0.85, 1.0), fx_mat(Color(0.5, 1.0, 0.6), 0.55), Vector3.ZERO)
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ring.name = "ring"
+		_anim(m, "bob", 1.5, 0.04)
+		out.append(m)
+	return out
+
+
+func set_spot_state(m: Node3D, open: bool, used: bool) -> void:
+	var ring: MeshInstance3D = m.get_node("ring")
+	if not open: ring.material_override = fx_mat(Color(0.45, 0.45, 0.5), 0.25)
+	elif used: ring.material_override = fx_mat(Color(1.0, 0.85, 0.4), 0.35)
+	else: ring.material_override = fx_mat(Color(0.5, 1.0, 0.6), 0.6)
+
+
+func make_deco(k: String, p: Vector3) -> Node3D:
+	var n := node(root, p)
+	var wood := mat(Color(0.5, 0.35, 0.22))
+	var stone := mat(Color(0.55, 0.54, 0.5))
+	match k:
+		"jangseung":
+			for sx in [-0.45, 0.45]:
+				var j := node(n, Vector3(sx, 0, 0))
+				part(j, cyl(0.15, 0.18, 1.5, 8), wood, Vector3(0, 0.75, 0))
+				part(j, sph(0.2), wood, Vector3(0, 1.55, 0))
+				eyes(j, 1.58, 0.16, 0.07, 0.05)
+				part(j, box(Vector3(0.2, 0.05, 0.04)), mat(Color(0.95, 0.92, 0.85)), Vector3(0, 1.36, 0.17))
+				part(j, cyl(0.14, 0.18, 0.22, 8), mat(INK) if sx < 0 else mat(Color(0.75, 0.2, 0.18)), Vector3(0, 1.8, 0))
+		"sotdae":
+			part(n, cyl(0.04, 0.05, 2.4, 6), wood, Vector3(0, 1.2, 0))
+			for k2 in range(3):
+				var b := node(n, Vector3(0, 2.42 - k2 * 0.02, 0), Vector3(0, k2 * 2.1, 0))
+				part(b, sph(0.1), wood, Vector3(0.15, 0, 0), Vector3.ZERO, Vector3(1.6, 0.8, 0.8))
+				part(b, cyl(0.0, 0.03, 0.12, 4), wood, Vector3(0.33, 0.02, 0), Vector3(0, 0, -PI / 2))
+		"seonang":
+			for k2 in range(9):
+				var a := k2 * 2.1
+				part(n, sph(0.2 - k2 * 0.01), stone, Vector3(cos(a) * 0.25 * (1.0 - k2 * 0.08), 0.15 + k2 * 0.1, sin(a) * 0.25 * (1.0 - k2 * 0.08)))
+			part(n, cyl(0.06, 0.09, 1.6, 6), wood, Vector3(0.6, 0.8, 0))
+			var cols := [Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.3), Color(0.2, 0.4, 0.85), Color(0.95, 0.95, 0.95), Color(0.25, 0.65, 0.35)]
+			for k2 in range(5): part(n, box(Vector3(0.05, 0.4, 0.02)), mat(cols[k2]), Vector3(0.6 + (k2 - 2) * 0.12, 1.2, 0.1), Vector3(0, 0, (k2 - 2) * 0.2))
+		"seokdeung":
+			part(n, cyl(0.3, 0.36, 0.15, 6), stone, Vector3(0, 0.08, 0))
+			part(n, cyl(0.1, 0.12, 0.8, 6), stone, Vector3(0, 0.55, 0))
+			part(n, box(Vector3(0.42, 0.34, 0.42)), mat(Color(1, 0.8, 0.45), Color(1, 0.7, 0.3), 2.0), Vector3(0, 1.1, 0))
+			part(n, cyl(0.0, 0.4, 0.3, 6), stone, Vector3(0, 1.42, 0))
+			var l := OmniLight3D.new(); l.light_color = Color(1, 0.7, 0.4); l.omni_range = 3.0; l.light_energy = 0.8; l.position = Vector3(0, 1.1, 0)
+			n.add_child(l)
+		"chorong":
+			for sx in [-0.6, 0.6]:
+				var s2 := node(n, Vector3(sx, 0, 0))
+				part(s2, cyl(0.03, 0.04, 1.6, 6), wood, Vector3(0, 0.8, 0))
+				part(s2, cyl(0.13, 0.13, 0.14, 8), mat(Color(0.2, 0.3, 0.8), Color(0.3, 0.45, 1.0), 1.2), Vector3(0, 1.5, 0.12))
+				part(s2, cyl(0.13, 0.13, 0.18, 8), mat(Color(0.9, 0.2, 0.2), Color(1, 0.45, 0.3), 2.2), Vector3(0, 1.34, 0.12))
+		"jangdok":
+			part(n, box(Vector3(1.6, 0.18, 1.1)), stone, Vector3(0, 0.09, 0))
+			var jar := mat(Color(0.35, 0.2, 0.12))
+			for k2 in range(5):
+				var jp := Vector3(-0.5 + (k2 % 3) * 0.5, 0, -0.2 + (k2 / 3) * 0.45)
+				var sc := 0.8 + 0.2 * (k2 % 2)
+				part(n, sph(0.25), jar, jp + Vector3(0, 0.18 + 0.23 * sc, 0), Vector3.ZERO, Vector3(sc, sc * 1.15, sc))
+				part(n, cyl(0.15, 0.18, 0.05, 10), jar, jp + Vector3(0, 0.18 + 0.5 * sc, 0), Vector3.ZERO, Vector3(sc, 1, sc))
+		"geumjul":
+			for sx in [-0.8, 0.8]: part(n, cyl(0.04, 0.05, 1.3, 6), wood, Vector3(sx, 0.65, 0))
+			part(n, cyl(0.025, 0.025, 1.6, 6), mat(Color(0.85, 0.75, 0.5)), Vector3(0, 1.15, 0), Vector3(0, 0, PI / 2))
+			for k2 in range(6):
+				var c2 := Color(0.85, 0.15, 0.1) if k2 % 2 == 0 else Color(0.15, 0.12, 0.1)
+				part(n, cyl(0.03, 0.01, 0.16, 4), mat(c2), Vector3(-0.6 + k2 * 0.24, 1.02, 0))
+		"haetaesang":
+			part(n, box(Vector3(0.7, 0.3, 0.9)), stone, Vector3(0, 0.15, 0))
+			var h := node(n, Vector3(0, 0.3, 0))
+			h.scale = Vector3(0.9, 0.9, 0.9)
+			_m_haetae(h)
+		"ssireumpan":
+			part(n, cyl(0.95, 0.95, 0.06, 16), mat(Color(0.82, 0.74, 0.52)), Vector3(0, 0.03, 0))
+			part(n, torus(0.9, 1.0), mat(Color(0.55, 0.42, 0.28)), Vector3(0, 0.05, 0))
+		"sindansu":
+			part(n, cyl(0.14, 0.24, 1.8, 7), mat(Color(0.4, 0.3, 0.2)), Vector3(0, 0.9, 0))
+			part(n, sph(0.8), mat(Color(0.2, 0.4, 0.22)), Vector3(0, 2.1, 0), Vector3.ZERO, Vector3(1.2, 0.8, 1.2))
+			var cols2 := [Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.3), Color(0.2, 0.4, 0.85), Color(0.95, 0.95, 0.95)]
+			for k2 in range(4): part(n, box(Vector3(0.05, 0.5, 0.02)), mat(cols2[k2]), Vector3(cos(k2 * 1.6) * 0.25, 1.3, sin(k2 * 1.6) * 0.25))
+			part(n, torus(0.2, 0.25), mat(Color(0.85, 0.75, 0.5)), Vector3(0, 1.1, 0))
+		"hwalteo":
+			part(n, box(Vector3(1.0, 1.3, 0.1)), mat(Color(0.95, 0.92, 0.85)), Vector3(0, 0.75, 0))
+			for k2 in range(3): part(n, cyl(0.38 - k2 * 0.12, 0.38 - k2 * 0.12, 0.11, 14), mat(Color(0.85, 0.15, 0.15) if k2 % 2 == 0 else Color(0.2, 0.3, 0.75)), Vector3(0, 0.8, 0.01 * k2), Vector3(PI / 2, 0, 0))
+			for sx in [-0.45, 0.45]: part(n, cyl(0.04, 0.04, 0.4, 5), wood, Vector3(sx, 0.2, 0))
+		"gutdang":
+			part(n, box(Vector3(1.2, 0.8, 0.9)), mat(Color(0.86, 0.82, 0.72)), Vector3(0, 0.4, 0))
+			part(n, prism(Vector3(1.5, 0.5, 1.1)), mat(Color(0.25, 0.25, 0.3)), Vector3(0, 1.05, 0))
+			var cols3 := [Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.3), Color(0.2, 0.4, 0.85)]
+			for k2 in range(3): part(n, box(Vector3(0.18, 0.35, 0.02)), mat(cols3[k2]), Vector3(-0.35 + k2 * 0.35, 0.5, 0.46))
+		"jeongja":
+			for cx in [-0.55, 0.55]:
+				for cz in [-0.55, 0.55]: part(n, cyl(0.05, 0.05, 1.2, 6), mat(Color(0.6, 0.2, 0.15)), Vector3(cx, 0.6, cz))
+			part(n, box(Vector3(1.3, 0.08, 1.3)), wood, Vector3(0, 0.25, 0))
+			part(n, cyl(0.0, 1.05, 0.55, 6), mat(Color(0.25, 0.3, 0.35)), Vector3(0, 1.45, 0))
+		"yeonmot":
+			part(n, cyl(1.0, 1.0, 0.03, 16), mat(Color(0.2, 0.4, 0.55), Color(0.2, 0.4, 0.6), 0.4), Vector3(0, 0.02, 0))
+			part(n, torus(0.95, 1.08), stone, Vector3(0, 0.03, 0))
+			for k2 in range(3):
+				part(n, cyl(0.16, 0.16, 0.02, 8), mat(Color(0.25, 0.55, 0.3)), Vector3(cos(k2 * 2.1) * 0.45, 0.05, sin(k2 * 2.1) * 0.45))
+				part(n, sph(0.06), mat(Color(1, 0.6, 0.75), Color(1, 0.5, 0.7), 0.8), Vector3(cos(k2 * 2.1) * 0.45, 0.1, sin(k2 * 2.1) * 0.45))
+		"obanggi":
+			var cols4 := [Color(0.2, 0.4, 0.85), Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.3), Color(0.95, 0.95, 0.95), Color(0.12, 0.12, 0.14)]
+			for k2 in range(5):
+				var fpos := Vector3((k2 - 2) * 0.35, 0, absf(k2 - 2) * 0.12)
+				part(n, cyl(0.025, 0.03, 1.6, 5), wood, fpos + Vector3(0, 0.8, 0))
+				var flag := part(n, box(Vector3(0.3, 0.4, 0.02)), mat(cols4[k2]), fpos + Vector3(0.16, 1.4, 0))
+				_anim(flag, "sway", 1.2 + k2 * 0.2, 0.15)
+	return n
+
+
+# ---------------- unlockable units ----------------
+func _m_baekho(r: Node3D) -> void:
+	_quad(r, {"c": Color(0.95, 0.95, 0.93), "len": 1.4, "stripes": true, "eye": Color(0.4, 0.8, 1.0)})
+
+
+func _m_cheongryong(r: Node3D, big: bool) -> void:
+	var c := Color(0.2, 0.55, 0.75)
+	var s := 1.2 if big else 1.0
+	var b := node(r, Vector3.ZERO)
+	b.scale = Vector3(s, s, s)
+	for k in range(7):
+		var a := k * 0.9
+		part(b, sph(0.14 - k * 0.008), mat(c.darkened(0.04 * k)), Vector3(cos(a) * 0.32, 0.25 + k * 0.1, sin(a) * 0.32))
+	part(b, sph(0.2), mat(c.lightened(0.1)), Vector3(0.1, 1.0, 0.25), Vector3.ZERO, Vector3(1, 0.85, 1.3))
+	glow_eyes(b, 1.06, 0.42, 0.09, 0.03, Color(1, 1, 0.6))
+	for sx in [-1.0, 1.0]: part(b, cyl(0.0, 0.035, 0.28, 5), mat(Color(0.95, 0.92, 0.8)), Vector3(0.1 + sx * 0.09, 1.24, 0.15), Vector3(-0.5, 0, -sx * 0.3))
+	var bolt := part(b, sph(0.06), fx_mat(Color(0.7, 0.9, 1.0), 1.0), Vector3(0.4, 1.0, 0))
+	anims.append({"node": bolt, "kind": "orbit", "base": Vector3(0, 1.0, 0), "ph": 0.0, "sp": 3.0, "amp": 0.45})
+
+
+func _m_jujak(r: Node3D) -> void:
+	var b := node(r, Vector3(0, 0.2, 0))
+	part(b, sph(0.24), mat(Color(0.85, 0.2, 0.15)), Vector3(0, 0.7, 0), Vector3.ZERO, Vector3(1, 0.9, 1.3))
+	part(b, sph(0.14), mat(Color(0.9, 0.3, 0.15)), Vector3(0, 0.95, 0.2))
+	part(b, cyl(0.0, 0.05, 0.14, 5), mat(GOLD), Vector3(0, 0.93, 0.36), Vector3(PI / 2, 0, 0))
+	for sx in [-1.0, 1.0]:
+		part(b, box(Vector3(0.5, 0.05, 0.28)), mat(Color(1, 0.45, 0.15), Color(1, 0.4, 0.1), 1.2), Vector3(sx * 0.36, 0.8, -0.02), Vector3(0, 0, sx * 0.45))
+		part(b, sph(0.03), mat(Color(1, 0.9, 0.3), Color(1, 0.9, 0.3), 3.0), Vector3(sx * 0.06, 0.99, 0.31))
+	for k in range(3): part(b, box(Vector3(0.06, 0.04, 0.5)), mat(Color(1, 0.6, 0.15), Color(1, 0.5, 0.1), 1.0), Vector3((k - 1) * 0.08, 0.66, -0.45), Vector3(0.3, (k - 1) * 0.3, 0))
+
+
+func _m_girin(r: Node3D) -> void:
+	_quad(r, {"c": Color(0.95, 0.82, 0.45), "len": 1.25, "eye": Color(0.4, 0.8, 1.0)})
+	part(r, cyl(0.0, 0.05, 0.3, 5), mat(GOLD, GOLD, 1.0), Vector3(0, 0.95, 0.43))
+	for k in range(4): part(r, sph(0.07), mat(Color(0.3, 0.6, 0.5)), Vector3(0, 0.62, -0.2 + k * 0.14))
+
+
+func _m_bonghwang(r: Node3D) -> void:
+	var b := node(r, Vector3(0, 0.2, 0))
+	part(b, sph(0.22), mat(Color(0.95, 0.75, 0.3)), Vector3(0, 0.72, 0), Vector3.ZERO, Vector3(1, 0.9, 1.25))
+	part(b, sph(0.13), mat(Color(0.95, 0.4, 0.3)), Vector3(0, 0.96, 0.18))
+	part(b, cyl(0.0, 0.08, 0.2, 5), mat(Color(0.9, 0.2, 0.2)), Vector3(0, 1.12, 0.14))
+	var cols := [Color(0.2, 0.4, 0.85), Color(0.9, 0.2, 0.2), Color(0.95, 0.85, 0.3), Color(0.95, 0.95, 0.95), Color(0.25, 0.65, 0.35)]
+	for k in range(5): part(b, box(Vector3(0.07, 0.03, 0.7)), mat(cols[k], cols[k], 0.6), Vector3((k - 2) * 0.09, 0.7 - absf(k - 2) * 0.04, -0.55), Vector3(0.35, (k - 2) * 0.22, 0))
+	for sx in [-1.0, 1.0]: part(b, box(Vector3(0.4, 0.04, 0.24)), mat(Color(0.95, 0.75, 0.3)), Vector3(sx * 0.3, 0.8, 0), Vector3(0, 0, sx * 0.4))
+
+
+func _m_singijeon(r: Node3D) -> void:
+	var wood := mat(Color(0.5, 0.35, 0.22))
+	part(r, box(Vector3(0.6, 0.12, 0.9)), wood, Vector3(0, 0.3, 0))
+	for sx in [-1.0, 1.0]: part(r, cyl(0.22, 0.22, 0.06, 12), wood, Vector3(sx * 0.34, 0.22, 0.1), Vector3(0, 0, PI / 2))
+	var hive := node(r, Vector3(0, 0.72, 0.05), Vector3(-0.5, 0, 0))
+	part(hive, box(Vector3(0.55, 0.5, 0.35)), mat(Color(0.6, 0.45, 0.28)), Vector3.ZERO)
+	for k in range(15): part(hive, cyl(0.025, 0.025, 0.05, 6), mat(Color(0.1, 0.08, 0.06)), Vector3(-0.2 + (k % 5) * 0.1, -0.16 + (k / 5) * 0.16, 0.18), Vector3(PI / 2, 0, 0))
+	part(r, box(Vector3(0.05, 0.05, 0.6)), wood, Vector3(0, 0.3, -0.7))
+
+
+func _m_gaema(r: Node3D) -> void:
+	_quad(r, {"c": Color(0.35, 0.3, 0.3), "len": 1.45, "eye": Color(1, 0.9, 0.5)})
+	for k in range(5): part(r, box(Vector3(0.62, 0.07, 0.16)), metal(Color(0.5, 0.5, 0.52)), Vector3(0, 0.55, -0.3 + k * 0.15))
+	var rider := node(r, Vector3(0, 0.45, -0.05))
+	rider.scale = Vector3(0.75, 0.75, 0.75)
+	_human(rider, {"robe": Color(0.45, 0.45, 0.5), "top": Color(0.4, 0.4, 0.45), "hat": "helmet", "weapon": "spear"})
+
+
+func _m_yeonggam(r: Node3D) -> void:
+	_human(r, {"robe": Color(0.45, 0.35, 0.3), "skin": Color(0.85, 0.35, 0.28), "hat": "satgat", "weapon": "torch"})
+	part(r, box(Vector3(0.5, 0.4, 0.04)), mat(Color(0.75, 0.68, 0.5), Color.BLACK, 0.0, 0.8), Vector3(-0.3, 0.55, -0.15), Vector3(0, 0.5, 0))
+
+
+# ---------------- new yokai ----------------
+func _e_songaksi(r: Node3D) -> void:
+	_ghost(r, {"c": Color(0.96, 0.96, 0.98), "eye": Color(1, 0.3, 0.3)})
+	part(r, box(Vector3(0.06, 0.35, 0.02)), mat(Color(0.85, 0.12, 0.15)), Vector3(0, 0.62, -0.18))
+
+
+func _e_mongdal(r: Node3D) -> void:
+	_ghost(r, {"c": Color(0.45, 0.6, 0.8), "hair": false, "eye": Color(0.6, 1, 1)})
+	part(r, cyl(0.04, 0.05, 0.5, 5), mat(INK), Vector3(0, 0.75, -0.2), Vector3(0.3, 0, 0))
+
+
+func _e_judungi(r: Node3D) -> void:
+	var c := Color(0.4, 0.35, 0.3)
+	part(r, sph(0.3), mat(c), Vector3(0, 0.4, 0), Vector3.ZERO, Vector3(1, 0.9, 1.2))
+	part(r, cyl(0.02, 0.07, 0.9, 5), mat(Color(0.8, 0.65, 0.3)), Vector3(0, 0.5, 0.75), Vector3(PI / 2, 0, 0))
+	part(r, cyl(0.02, 0.07, 0.9, 5), mat(c), Vector3(0, 0.5, -0.75), Vector3(-PI / 2, 0, 0))
+	glow_eyes(r, 0.58, 0.28, 0.1, 0.04, Color(1, 0.6, 0.1))
+
+
+func _e_gangcheol(r: Node3D) -> Array:
+	var c := Color(0.75, 0.3, 0.12)
+	part(r, sph(0.55), mat(c), Vector3(0, 0.7, 0), Vector3.ZERO, Vector3(1, 0.85, 1.3))
+	part(r, sph(0.28), mat(c.lightened(0.1)), Vector3(0, 0.62, 0.62), Vector3.ZERO, Vector3(1, 0.7, 1.2))
+	glow_eyes(r, 0.95, 0.55, 0.25, 0.1, Color(1, 0.9, 0.2))
+	for sx in [-1.0, 1.0]: part(r, cyl(0.0, 0.08, 0.4, 5), mat(Color(0.25, 0.2, 0.18)), Vector3(sx * 0.25, 1.25, 0.2), Vector3(-0.4, 0, -sx * 0.4))
+	for k in range(4):
+		var f := part(r, cyl(0.0, 0.14, 0.5, 6), mat(Color(1, 0.5, 0.1), Color(1, 0.45, 0.1), 2.5, 0.8), Vector3(cos(k * 1.6) * 0.35, 1.25, sin(k * 1.6) * 0.35 - 0.1))
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var segs: Array = []
+	for k in range(5):
+		var s := Node3D.new()
+		part(s, sph(0.48 - k * 0.06), mat(c.darkened(0.08 * k)), Vector3.ZERO)
+		part(s, cyl(0.0, 0.12, 0.35, 4), mat(Color(1, 0.55, 0.15), Color(1, 0.5, 0.1), 1.5), Vector3(0, 0.45 - k * 0.04, 0))
+		root.add_child(s)
+		segs.append(s)
+	return segs
+
+
+func _e_dokryong(r: Node3D) -> Array:
+	var c := Color(0.14, 0.16, 0.14)
+	part(r, sph(0.55), mat(c), Vector3(0, 0.7, 0), Vector3.ZERO, Vector3(1, 0.85, 1.3))
+	part(r, sph(0.28), mat(c.lightened(0.1)), Vector3(0, 0.6, 0.62), Vector3.ZERO, Vector3(1, 0.7, 1.2))
+	glow_eyes(r, 0.95, 0.55, 0.25, 0.1, Color(0.5, 1, 0.3))
+	for k in range(6): part(r, box(Vector3(0.03, 0.6, 0.03)), mat(Color(0.4, 0.6, 0.3)), Vector3(cos(k) * 0.3, 0.9, sin(k) * 0.3 - 0.2), Vector3(0.3 * sin(k), 0, 0.3 * cos(k)))
+	var segs: Array = []
+	for k in range(6):
+		var s := Node3D.new()
+		part(s, sph(0.5 - k * 0.05), mat(c.lightened(0.04 * k)), Vector3.ZERO)
+		root.add_child(s)
+		segs.append(s)
+	return segs
+
+
+func _e_goldpig(r: Node3D) -> void:
+	var gold := metal(Color(0.95, 0.75, 0.25))
+	part(r, sph(0.65), gold, Vector3(0, 0.75, 0), Vector3.ZERO, Vector3(1.0, 0.85, 1.35))
+	for lx in [-0.35, 0.35]:
+		for lz in [-0.45, 0.45]: part(r, cyl(0.12, 0.14, 0.4, 7), gold, Vector3(lx, 0.2, lz))
+	part(r, sph(0.38), gold, Vector3(0, 0.95, 0.75))
+	part(r, cyl(0.16, 0.16, 0.12, 10), gold, Vector3(0, 0.88, 1.12), Vector3(PI / 2, 0, 0))
+	for sx in [-1.0, 1.0]:
+		part(r, sph(0.03), mat(INK), Vector3(sx * 0.06, 0.88, 1.19))
+		part(r, cyl(0.0, 0.12, 0.2, 4), gold, Vector3(sx * 0.22, 1.32, 0.7))
+	glow_eyes(r, 1.05, 1.05, 0.16, 0.05, Color(1, 0.2, 0.1))
+	part(r, torus(0.06, 0.09), gold, Vector3(0, 0.95, -0.95), Vector3(PI / 2, 0, 0))
 
 
 # ---------------- projectiles & effects ----------------
