@@ -4,4 +4,4 @@ builds/
 .DS_Store
 
 # external character models (AI-generated pilots are non-commercial; keep them local)
-assets/models/**/*.glb
+assets/models/*/
