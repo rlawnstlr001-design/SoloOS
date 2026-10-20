@@ -612,6 +612,8 @@ func _add_unit(t: String, tier: int, s: int) -> void:
 		"mp": 50.0 if UNITS[t].get("hero", false) else 0.0, "auto": true, "buff_t": 0.0, "buff_m": 1.0}
 	u["rig"] = u["node"].get_node("rig")
 	u["node"].position = slot_pos(s) + Vector3(0, 0.12, 0)
+	u["face"] = 0.0
+	art.pop(u["node"])
 	units.append(u)
 	_recount()
 
@@ -1114,6 +1116,7 @@ func _spawn_enemy(key: String, child: bool, at_d: float) -> void:
 	var n: Node3D = look["node"]
 	e["segs"] = look["segs"]
 	e["rig"] = look["rig"]
+	e["flash"] = look["flash"]
 	e["sc"] = 1.0 if boss else (0.75 + 0.01 * wave) * (0.7 if child else 1.0)
 	n.scale = Vector3.ONE * e["sc"]
 	n.position = path_pos(at_d)
@@ -1313,7 +1316,7 @@ func _units_step(dt: float) -> void:
 		if U["sp"] == "gold" and rng.randf() < (0.25 if U.get("hero", false) else 0.08) * (2.0 if gold_x2 else 1.0):
 			gold += 1
 			_float("+1 뚝딱", up + Vector3(0, 1.8, 0), Color(1, 0.85, 0.2))
-		u["node"].rotation.y = atan2(tp.x - up.x, tp.z - up.z)
+		u["face"] = atan2(tp.x - up.x, tp.z - up.z)
 		u["atk"] = 1.0
 
 
@@ -1343,7 +1346,7 @@ func _deaths() -> void:
 			for sgm in e4["segs"]: sgm.queue_free()
 			if wave >= LAST_WAVE:
 				_end_run(true, "최종 보스 %s 격퇴!" % ENEMIES[key]["n"])
-		e4["node"].queue_free()
+		art.die(e4["node"])
 		enemies.remove_at(k)
 		if split:
 			_spawn_enemy(key, true, maxf(0.0, d - 0.2))
@@ -1361,11 +1364,14 @@ func _process(delta: float) -> void:
 		if u["tier"] == 3: u["node"].position.y = 0.12 + 0.08 * sin(t_acc * 3.0)
 		u["atk"] = maxf(0.0, u["atk"] - delta * 5.0)
 		var rig: Node3D = u["rig"]
-		rig.position = Vector3(0, 0.08, 0.22 * sin(u["atk"] * PI))
-		rig.scale = Vector3(1.0, 1.0 + 0.035 * sin(t_acc * 2.4 + u["slot"]), 1.0)
+		var a := sin(u["atk"] * PI)
+		rig.position = Vector3(0, 0.08, 0.22 * a)
+		rig.scale = Vector3(1.0 + 0.1 * a, 1.0 - 0.12 * a + 0.035 * sin(t_acc * 2.4 + u["slot"]), 1.0 + 0.1 * a)
+		u["node"].rotation.y = lerp_angle(u["node"].rotation.y, u["face"], minf(1.0, delta * 12.0))
 	for e in enemies:
 		e["hit"] = maxf(0.0, e["hit"] - delta)
 		e["node"].scale = Vector3.ONE * e["sc"] * (1.0 + 1.6 * e["hit"])
+		if e.has("flash"): e["flash"].visible = e["hit"] > 0.05
 		e["rig"].visible = targetable(e) or e["hp"] <= 0.0
 		if not e["boss"]: e["rig"].rotation.z = 0.15 * sin(t_acc * 9.0 + e["d"] * 2.0)
 	hud.queue_redraw()

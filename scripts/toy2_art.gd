@@ -41,6 +41,7 @@ func mat(c: Color, emis: Color = Color.BLACK, e: float = 0.0, alpha: float = 1.0
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(c.r, c.g, c.b, alpha)
 	m.roughness = 0.85
+	_toon(m)
 	if e > 0:
 		m.emission_enabled = true; m.emission = emis; m.emission_energy_multiplier = e
 	if alpha < 1.0:
@@ -68,8 +69,67 @@ func metal(c: Color) -> StandardMaterial3D:
 	m.albedo_color = c
 	m.metallic = 0.8
 	m.roughness = 0.35
+	_toon(m)
 	mats[key] = m
 	return m
+
+
+# ---------------- style: cel shading, outlines, chibi heads ----------------
+# Style pass (docs/design/14_style_pass.md): banded toon light + soft rim on everything, an inverted-hull outline on
+# characters, and bigger heads on humanoid units so they read at gameplay zoom.
+const OUTLINE_W := 0.018
+const CHIBI := ["dokkaebi", "dokkaebi_king", "gungsa", "chakho", "posu", "mudang", "jeoseung", "yeomra", "mulgwisin", "ssireum",
+	"bihyeong", "gwigyo", "hwarang", "seungbyeong", "agijangsu", "cheoyong", "cheoyongrang", "pansu", "bari", "jeonuchi", "honggildong",
+	"hwalbin", "baksi", "mago", "tongjesa", "yongwang", "yeonggam", "uibyeong", "uinyeo", "samsin", "jacheongbi", "seungjang"]
+var outline_pass: StandardMaterial3D = null
+var outlined := {}
+
+
+func _toon(m: StandardMaterial3D) -> void:
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	m.specular_mode = BaseMaterial3D.SPECULAR_TOON
+	m.rim_enabled = true
+	m.rim = 0.3
+	m.rim_tint = 0.6
+
+
+func _outline_of(m: Material) -> Material:
+	var sm := m as StandardMaterial3D
+	if sm == null or sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or sm.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
+		return m
+	var id := sm.get_instance_id()
+	if outlined.has(id): return outlined[id]
+	if outline_pass == null:
+		outline_pass = StandardMaterial3D.new()
+		outline_pass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		outline_pass.cull_mode = BaseMaterial3D.CULL_FRONT
+		outline_pass.grow = true
+		outline_pass.grow_amount = OUTLINE_W
+		outline_pass.albedo_color = Color(0.05, 0.04, 0.08)
+	var d := sm.duplicate() as StandardMaterial3D
+	d.next_pass = outline_pass
+	outlined[id] = d
+	return d
+
+
+func style_tree(n: Node) -> void:
+	# outlines on every opaque part big enough to carry one (tiny eyes and strings stay clean)
+	for ch in n.get_children():
+		if ch is MeshInstance3D:
+			var mi := ch as MeshInstance3D
+			if mi.mesh != null and mi.mesh.get_aabb().size.length() * mi.scale.length() / 1.732 > 0.13:
+				mi.material_override = _outline_of(mi.material_override)
+		if ch is Node3D and not (ch is Light3D): style_tree(ch)
+
+
+func _chibi(cont: Node3D, hc: Vector3, thr: float, k: float) -> void:
+	# scale everything above the neck around the head centre: bigger head, hat and face
+	for ch in cont.get_children():
+		if not (ch is Node3D): continue
+		var c3 := ch as Node3D
+		if c3.position.y < thr: continue
+		c3.position = hc + (c3.position - hc) * k
+		c3.scale *= k
 
 
 func cyl(top: float, bot: float, h: float, seg: int = 8) -> CylinderMesh:
@@ -473,8 +533,13 @@ func make_unit(t: String, tier: int, kin_c: Color, tier_c: Color, hero: bool) ->
 			var halo2 := part(rig, torus(0.65, 0.75), fx_mat(Color(1, 0.6, 0.3), 0.5), Vector3(0, 0.1, 0))
 			halo2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		"seungjang": _human(rig, {"robe": Color(0.5, 0.48, 0.45), "top": Color(0.7, 0.35, 0.2), "sash": GOLD, "hat": "satgat", "weapon": "staff", "cape": Color(0.6, 0.3, 0.15), "scale": 1.1})
+	if CHIBI.has(t):
+		var cont: Node3D = rig
+		if rig.get_child_count() == 1 and not (rig.get_child(0) is MeshInstance3D): cont = rig.get_child(0)
+		_chibi(cont, Vector3(0, 1.02, 0), 0.9, 1.32)
+	style_tree(rig)
 	if hero:
-		var halo := part(n, torus(0.26, 0.32), mat(GOLD, GOLD, 3.0), Vector3(0, 1.8, 0))
+		var halo := part(n, torus(0.26, 0.32), mat(GOLD, GOLD, 3.0), Vector3(0, 1.95, 0))
 		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if tier >= 2:
 		var l := OmniLight3D.new(); l.light_color = tier_c; l.omni_range = 2.2; l.light_energy = 0.8 + tier * 0.4; l.position = Vector3(0, 1.0, 0)
@@ -486,34 +551,42 @@ func make_unit(t: String, tier: int, kin_c: Color, tier_c: Color, hero: bool) ->
 
 
 func _m_dokkaebi(r: Node3D, king: bool) -> void:
-	var red := Color(0.7, 0.13, 0.12) if king else Color(0.86, 0.27, 0.2)
+	# Korean-leaning dokkaebi: ruddy skin, 바지저고리, huge shaggy mane, big eyes and grin, knobbly wooden club.
+	# No horn and no tiger-skin loincloth (that look is criticised as Japanese oni influence).
+	var skin := Color(0.66, 0.34, 0.24) if king else Color(0.74, 0.4, 0.27)
+	var jacket := Color(0.62, 0.12, 0.14) if king else Color(0.25, 0.33, 0.55)
+	var pants := Color(0.92, 0.9, 0.84)
 	for sx in [-1.0, 1.0]:
-		part(r, cyl(0.07, 0.09, 0.3, 6), mat(red.darkened(0.15)), Vector3(sx * 0.13, 0.15, 0))
-	part(r, cyl(0.3, 0.33, 0.2, 10), mat(Color(0.95, 0.68, 0.2)), Vector3(0, 0.36, 0))
-	for k in range(3):
-		part(r, box(Vector3(0.05, 0.2, 0.04)), mat(INK), Vector3(-0.15 + k * 0.15, 0.36, 0.3))
-	part(r, sph(0.32), mat(red), Vector3(0, 0.63, 0), Vector3.ZERO, Vector3(1, 1.05, 0.9))
-	part(r, sph(0.2), mat(red.lightened(0.15)), Vector3(0, 0.58, 0.15))
-	part(r, sph(0.27), mat(red.lightened(0.05)), Vector3(0, 1.02, 0.02))
-	for k in range(6):
-		part(r, sph(0.09), mat(Color(0.12, 0.08, 0.06)), Vector3(cos(k * 1.05) * 0.2, 1.2, sin(k * 1.05) * 0.18 - 0.06))
-	eyes(r, 1.07, 0.22, 0.1, 0.075)
-	part(r, sph(0.05), mat(red.darkened(0.2)), Vector3(0, 0.99, 0.27))
-	part(r, box(Vector3(0.24, 0.06, 0.04)), mat(Color(0.98, 0.96, 0.88)), Vector3(0, 0.91, 0.24))
+		part(r, cyl(0.08, 0.1, 0.28, 6), mat(pants), Vector3(sx * 0.13, 0.15, 0))
+		part(r, torus(0.06, 0.09), mat(jacket.darkened(0.2)), Vector3(sx * 0.13, 0.06, 0))
+		part(r, box(Vector3(0.14, 0.06, 0.24)), mat(Color(0.75, 0.65, 0.42)), Vector3(sx * 0.13, 0.02, 0.04))
+	part(r, cyl(0.25, 0.33, 0.24, 10), mat(pants), Vector3(0, 0.36, 0))
+	part(r, sph(0.32), mat(jacket), Vector3(0, 0.64, 0), Vector3.ZERO, Vector3(1.05, 1.0, 0.92))
+	part(r, box(Vector3(0.08, 0.3, 0.04)), mat(Color(0.97, 0.97, 0.95)), Vector3(-0.06, 0.74, 0.27), Vector3(0, 0, 0.5))
+	part(r, torus(0.27, 0.31), mat(jacket.darkened(0.25)), Vector3(0, 0.46, 0))
+	part(r, sph(0.27), mat(skin), Vector3(0, 1.02, 0.02))
+	for k in range(9):
+		var a := k * TAU / 9.0
+		part(r, sph(0.12), mat(Color(0.16, 0.14, 0.18)), Vector3(cos(a) * 0.24, 1.1 + 0.08 * sin(a * 2.0), sin(a) * 0.2 - 0.07))
+	part(r, sph(0.16), mat(Color(0.16, 0.14, 0.18)), Vector3(0, 1.24, -0.08), Vector3.ZERO, Vector3(1.4, 0.8, 1.2))
+	eyes(r, 1.08, 0.22, 0.1, 0.08)
+	for sx in [-1.0, 1.0]: part(r, box(Vector3(0.12, 0.035, 0.04)), mat(Color(0.12, 0.1, 0.1)), Vector3(sx * 0.1, 1.17, 0.22), Vector3(0, 0, -sx * 0.25))
+	part(r, sph(0.07), mat(skin.darkened(0.12)), Vector3(0, 1.0, 0.27))
+	part(r, box(Vector3(0.26, 0.07, 0.04)), mat(Color(0.25, 0.06, 0.06)), Vector3(0, 0.91, 0.23))
+	for sx in [-1.0, 1.0]: part(r, cyl(0.03, 0.0, 0.07, 4), mat(Color(0.98, 0.96, 0.88)), Vector3(sx * 0.08, 0.91, 0.25))
 	if king:
-		for sx in [-1.0, 1.0]:
-			part(r, cyl(0.0, 0.07, 0.34, 6), mat(GOLD, GOLD, 0.8), Vector3(sx * 0.14, 1.32, 0), Vector3(0, 0, -sx * 0.35))
+		part(r, cyl(0.2, 0.2, 0.08, 12), mat(GOLD, GOLD, 0.8), Vector3(0, 1.3, 0))
+		for k in range(5):
+			var a := k * TAU / 5.0
+			part(r, box(Vector3(0.05, 0.2, 0.02)), mat(GOLD, GOLD, 0.8), Vector3(cos(a) * 0.19, 1.42, sin(a) * 0.19), Vector3(0, -a, 0))
 		part(r, box(Vector3(0.62, 0.78, 0.05)), mat(Color(0.28, 0.08, 0.32)), Vector3(0, 0.66, -0.3), Vector3(0.15, 0, 0))
-		part(r, torus(0.18, 0.22), mat(GOLD, GOLD, 1.0), Vector3(0, 0.66, 0), Vector3.ZERO, Vector3(1.7, 1, 1.5))
-	else:
-		part(r, cyl(0.0, 0.08, 0.3, 6), mat(Color(0.97, 0.92, 0.75)), Vector3(0, 1.37, 0.02))
-	part(r, cyl(0.06, 0.07, 0.36, 6), mat(red), Vector3(0.33, 0.66, 0.05), Vector3(0, 0, 0.9))
+	part(r, cyl(0.07, 0.08, 0.36, 6), mat(jacket), Vector3(0.33, 0.66, 0.05), Vector3(0, 0, 0.9))
 	var club := node(r, Vector3(0.48, 0.62, 0.12), Vector3(0.5, 0, -0.5))
-	var cm := mat(GOLD, GOLD, 0.7) if king else mat(Color(0.5, 0.32, 0.18))
-	part(club, cyl(0.13, 0.05, 0.6, 8), cm, Vector3(0, 0.3, 0))
-	for k in range(5):
-		var a := k * TAU / 5.0
-		part(club, sph(0.04), mat(Color(0.85, 0.85, 0.8)), Vector3(cos(a) * 0.12, 0.48, sin(a) * 0.12))
+	var cm := mat(GOLD, GOLD, 0.7) if king else mat(Color(0.52, 0.34, 0.2))
+	part(club, cyl(0.14, 0.06, 0.62, 8), cm, Vector3(0, 0.31, 0))
+	for k in range(6):
+		var a := k * TAU / 6.0
+		part(club, sph(0.055), cm, Vector3(cos(a) * 0.12, 0.38 + 0.08 * (k % 2), sin(a) * 0.12))
 
 
 func _m_gungsa(r: Node3D, hero: bool) -> void:
@@ -727,8 +800,13 @@ func make_enemy(look: String, boss: bool) -> Dictionary:
 		"dokryong": segs = _e_dokryong(rig)
 		"goldpig": _e_goldpig(rig)
 		_: _jabgwi(rig)
+	style_tree(rig)
+	for sg in segs: style_tree(sg)
+	var flash := part(n, sph(0.5), fx_mat(Color(1, 1, 1), 0.55), Vector3(0, 0.5, 0), Vector3.ZERO, Vector3.ONE * (2.0 if boss else 1.0))
+	flash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	flash.visible = false
 	root.add_child(n)
-	return {"node": n, "rig": rig, "segs": segs}
+	return {"node": n, "rig": rig, "segs": segs, "flash": flash}
 
 
 func _jabgwi(r: Node3D) -> void:
@@ -1487,7 +1565,10 @@ func make_projectile(t: String, c: Color) -> Dictionary:
 
 func _effect(n: Node3D, kind: String, life: float, vel: Vector3 = Vector3.ZERO) -> void:
 	if effects.size() > 120:
-		if is_instance_valid(effects[0]["node"]): effects[0]["node"].queue_free()
+		var old: Dictionary = effects[0]
+		if is_instance_valid(old["node"]):
+			if old["kind"] == "pop": old["node"].scale = old["vel"]
+			else: old["node"].queue_free()
 		effects.remove_at(0)
 	effects.append({"node": n, "kind": kind, "t": 0.0, "life": life, "vel": vel})
 
@@ -1518,6 +1599,21 @@ func pillar(pos: Vector3, c: Color, big: bool) -> void:
 		puff(pos, c, 10, 0.22)
 
 
+func pop(n: Node3D) -> void:
+	# summon pop-in: scale up from small with a little overshoot
+	if headless: return
+	_effect(n, "pop", 0.28, n.scale)
+	n.scale = n.scale * 0.2
+
+
+func die(n: Node3D) -> void:
+	# death: shrink, sink and spin instead of vanishing
+	if headless:
+		n.queue_free()
+		return
+	_effect(n, "die", 0.35, n.scale)
+
+
 func update(dt: float, t: float) -> void:
 	for k in range(anims.size() - 1, -1, -1):
 		var a: Dictionary = anims[k]
@@ -1541,12 +1637,21 @@ func update(dt: float, t: float) -> void:
 		e["t"] += dt
 		var f: float = e["t"] / e["life"]
 		if f >= 1.0 or not is_instance_valid(e["node"]):
-			if is_instance_valid(e["node"]): e["node"].queue_free()
+			if is_instance_valid(e["node"]):
+				if e["kind"] == "pop": e["node"].scale = e["vel"]
+				else: e["node"].queue_free()
 			effects.remove_at(k)
 			continue
 		var n2: Node3D = e["node"]
 		var v: Vector3 = e["vel"]
 		match e["kind"]:
+			"pop":
+				var o := sin(f * PI) * 0.18
+				n2.scale = v * (0.2 + 0.8 * minf(1.0, f * 1.4) + o)
+			"die":
+				n2.scale = v * maxf(0.01, 1.0 - f)
+				n2.position.y -= dt * 1.5
+				n2.rotation.y += dt * 10.0
 			"puff":
 				n2.position += v * dt
 				n2.scale = Vector3.ONE * (1.0 - f)
