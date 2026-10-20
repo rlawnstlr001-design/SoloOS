@@ -76,6 +76,7 @@ var manpa_done := false
 var unlocked: Array = []
 var bought_slots := 0
 var sel_slot := -1
+var sel_enemy := -1   # id of the clicked yokai (HP readout), -1 = none
 var cam_target := Vector3(3.6, 0, 0.9)
 var cam_dist := 24.0
 var drag_btn := 0
@@ -1121,13 +1122,7 @@ func _spawn_enemy(key: String, child: bool, at_d: float) -> void:
 	e["sc"] = 1.0 if boss else (0.75 + 0.01 * wave) * (0.7 if child else 1.0)
 	n.scale = Vector3.ONE * e["sc"]
 	n.position = path_pos(at_d)
-	var bar := MeshInstance3D.new()
-	var bm := BoxMesh.new(); bm.size = Vector3(0.8 if not boss else 1.8, 0.08, 0.08)
-	bar.mesh = bm
-	bar.material_override = _mat(Color(0.3, 1, 0.3), Color(0.2, 1, 0.2), 1.0)
-	n.add_child(bar)
-	bar.position = Vector3(0, 1.45 if not boss else 2.0, 0)
-	e["node"] = n; e["bar"] = bar
+	e["node"] = n
 	enemies.append(e)
 
 
@@ -1252,7 +1247,6 @@ func _enemies_step(dt: float) -> void:
 		if nxt.distance_to(e["node"].position) > 0.01: e["node"].look_at(nxt, Vector3.UP, true)
 		for k in range(e["segs"].size()):
 			e["segs"][k].position = path_pos(e["d"] - 0.75 * (k + 1)) + Vector3(0, 0.55, 0)
-		e["bar"].scale = Vector3(clampf(e["hp"] / e["maxhp"], 0, 1), 1, 1)
 
 
 func _units_step(dt: float) -> void:
@@ -1417,6 +1411,12 @@ func _unhandled_input(e: InputEvent) -> void:
 				if _flat(D.DECO_SPOTS[i], p) < 1.3:
 					click_spot(i); return
 			return
+		var ei := enemy_at_screen(e.position)
+		if ei >= 0:
+			sel_enemy = enemies[ei]["id"]
+			selected = -1; sel_slot = -1
+			return
+		sel_enemy = -1
 		var hit_slot := -1
 		for s in range(COLS * ROWS):
 			var sp := slot_pos(s)
@@ -1430,10 +1430,11 @@ func _unhandled_input(e: InputEvent) -> void:
 			return
 		sel_slot = -1
 		var ui := unit_at(hit_slot)
-		if ui >= 0 and ui != selected:
+		if ui >= 0 and selected < 0:
 			selected = ui
-		elif ui < 0 and selected >= 0:
-			move_selected(hit_slot)
+			msg = "빈 칸을 누르면 이동, 다른 유닛을 누르면 자리 맞바꿈. 다시 누르면 선택 해제."
+		elif ui != selected and selected >= 0:
+			move_selected(hit_slot)   # empty cell: move there; another unit: the two swap places
 		else:
 			selected = -1
 	elif e is InputEventKey and e.pressed and not e.echo:
@@ -1480,6 +1481,39 @@ func _hud_pos(p: Vector2) -> Vector2:
 
 func _proj(p: Vector3) -> Vector2:
 	return _hud_pos(cam.unproject_position(p))
+
+
+func _short_num(v: float) -> String:
+	if v >= 1000000.0: return "%.1fM" % (v / 1000000.0)
+	if v >= 10000.0: return "%.1f만" % (v / 10000.0)
+	return "%d" % int(ceil(v))
+
+
+func _enemy_top(e: Dictionary) -> Vector3:
+	return e["node"].global_position + Vector3(0, (2.0 if e["boss"] else 1.15 * e["sc"]), 0)
+
+
+func enemy_at_screen(sp: Vector2) -> int:
+	# nearest yokai whose body (ground to bar height, on screen) is under the cursor
+	var best := -1
+	var best_d := INF
+	for i in range(enemies.size()):
+		var e: Dictionary = enemies[i]
+		var base: Vector3 = e["node"].global_position
+		if cam.is_position_behind(base): continue
+		var a := cam.unproject_position(base)
+		var b := cam.unproject_position(_enemy_top(e))
+		var r := maxf(10.0, a.distance_to(b) * 0.45)
+		var d := sp.distance_to(a.lerp(b, 0.5))
+		if d < r and d < best_d:
+			best = i; best_d = d
+	return best
+
+
+func enemy_index(id: int) -> int:
+	for i in range(enemies.size()):
+		if enemies[i]["id"] == id: return i
+	return -1
 
 
 # ---------------- HUD ----------------
@@ -1689,6 +1723,19 @@ func _draw_hud() -> void:
 		var mc := Color(0.35, 0.6, 1.0) if not full else Color(1, 0.9, 0.3, 0.6 + 0.4 * sin(t_acc * 8.0))
 		c.draw_rect(Rect2(bp.x - 13, bp.y, 26.0 * u["mp"] / MP_MAX, 4), mc)
 		if full and not u["auto"]: c.draw_string(font, bp + Vector2(15, 5), "F", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 0.9, 0.3))
+	# HP bars over yokai (green -> yellow -> red); the clicked one is outlined
+	for e in enemies:
+		var top := _enemy_top(e)
+		if cam.is_position_behind(top): continue
+		var hb := _proj(top + Vector3(0, 0.25, 0))
+		var w := 34.0 if e["boss"] else 16.0
+		var r := clampf(e["hp"] / e["maxhp"], 0.0, 1.0)
+		var hc := Color(1.0, 0.25, 0.2).lerp(Color(1.0, 0.85, 0.2), clampf(r * 2.0, 0, 1)).lerp(Color(0.35, 0.95, 0.35), clampf(r * 2.0 - 1.0, 0, 1))
+		c.draw_rect(Rect2(hb.x - w / 2 - 1, hb.y - 1, w + 2, 5), Color(0.03, 0.03, 0.06, 0.9))
+		c.draw_rect(Rect2(hb.x - w / 2, hb.y, w * r, 3), hc)
+		if e["id"] == sel_enemy:
+			c.draw_rect(Rect2(hb.x - w / 2 - 2, hb.y - 2, w + 4, 7), Color(1, 1, 0.3), false, 1.0)
+			c.draw_colored_polygon(PackedVector2Array([hb + Vector2(0, -3), hb + Vector2(-6, -12), hb + Vector2(6, -12)]), Color(1, 1, 0.3))
 	# right panel
 	c.draw_rect(Rect2(430, 0, 210, 360), Color(0.03, 0.04, 0.08, 0.85))
 	if not started:
@@ -1721,6 +1768,23 @@ func _draw_hud() -> void:
 			if btns[i]["r"].position.y >= 330: _draw_btn(i)
 		var spos := _proj(slot_pos(u["slot"]) + Vector3(0, 2.0, 0))
 		c.draw_colored_polygon(PackedVector2Array([spos, spos + Vector2(-6, -9), spos + Vector2(6, -9)]), Color(1, 1, 0.3))
+	# clicked yokai: remaining HP and traits
+	var sei := enemy_index(sel_enemy) if sel_enemy >= 0 else -1
+	if sel_enemy >= 0 and sei < 0: sel_enemy = -1   # it died or escaped
+	if sei >= 0 and not choosing:
+		var se: Dictionary = enemies[sei]
+		var SE: Dictionary = ENEMIES[se["key"]]
+		var tn := []
+		for t in se["tr"]: tn.append(D.TRAIT_NAMES[t])
+		var einfo := "%s%s%s\n체력 %s / %s  (%d%%)%s\n%s" % [SE["n"], "  [보스]" if se["boss"] else "", "  (분열체)" if se["child"] else "",
+			_short_num(se["hp"]), _short_num(se["maxhp"]), int(ceil(100.0 * se["hp"] / se["maxhp"])),
+			("  방어 %s" % _short_num(se["armor"])) if se["armor"] > 0.0 else "", SE["d"]]
+		if not tn.is_empty(): einfo += "\n특성: " + ", ".join(tn)
+		c.draw_rect(Rect2(434, 254, 202, 102), Color(0.08, 0.09, 0.14, 0.95))
+		c.draw_multiline_string(font, Vector2(438, 266), einfo, HORIZONTAL_ALIGNMENT_LEFT, 196, 9, 7, Color(0.92, 0.92, 0.97))
+		var hr := clampf(se["hp"] / se["maxhp"], 0.0, 1.0)
+		c.draw_rect(Rect2(438, 343, 194, 7), Color(0.2, 0.2, 0.25))
+		c.draw_rect(Rect2(438, 343, 194 * hr, 7), Color(1.0, 0.3, 0.25).lerp(Color(0.35, 0.95, 0.35), hr))
 	# wave preview + message
 	c.draw_rect(Rect2(4, 312, 420, 20), Color(0.03, 0.04, 0.08, 0.7))
 	c.draw_string(font, Vector2(10, 326), "이번: %s   다음: %s" % [_wave_text(wave), _wave_text(wave + 1)], HORIZONTAL_ALIGNMENT_LEFT, 410, 9, Color(0.85, 0.75, 1.0))
