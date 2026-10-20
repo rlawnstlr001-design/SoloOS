@@ -478,8 +478,9 @@ func make_unit(t: String, tier: int, kin_c: Color, tier_c: Color, hero: bool) ->
 	n.add_child(rig)
 	var custom := load_model("units", t)
 	if custom != null:
-		_style_model(custom)
-		rig.add_child(_fit_model(custom, 1.65 if hero else 1.45))
+		var fitu := _fit_model(custom, 1.65 if hero else 1.45)
+		_style_model(custom, fitu.scale.x)
+		rig.add_child(fitu)
 	else:
 		_build_unit(rig, t)
 	if hero:
@@ -709,8 +710,9 @@ func make_enemy(look: String, boss: bool) -> Dictionary:
 	var segs: Array = []
 	var custom := load_model("yokai", look)
 	if custom != null:
-		_style_model(custom)
-		rig.add_child(_fit_model(custom, 2.2 if boss else 1.1))
+		var fite := _fit_model(custom, 2.2 if boss else 1.1)
+		_style_model(custom, fite.scale.x)
+		rig.add_child(fite)
 	else:
 		segs = _build_enemy(rig, look)
 	var flash := part(n, sph(0.5), fx_mat(Color(1, 1, 1), 0.55), Vector3(0, 0.5, 0), Vector3.ZERO, Vector3.ONE * (2.0 if boss else 1.0))
@@ -1280,6 +1282,7 @@ var model_cache := {}
 
 
 func load_model(kind: String, key: String) -> Node3D:
+	if headless: return null   # bots and tests never see the models; skip the heavy loads
 	var path := "%s/%s/%s.glb" % [model_dir, kind, key]
 	if not model_cache.has(path):
 		var tpl: Node3D = null
@@ -1343,8 +1346,26 @@ func _fit_model(m: Node3D, height: float) -> Node3D:
 	return fit
 
 
-func _style_model(n: Node) -> void:
-	# toon + rim on every surface material, outline on opaque ones
+const GLB_OUTLINE_W := 0.011   # world-space outline width for external models (dense AI meshes look muddy with thicker lines)
+var outline_by_grow := {}
+
+
+func _outline_for_scale(k: float) -> StandardMaterial3D:
+	# the outline grows in mesh space before the fit scale, so divide the wanted world width by that scale
+	var g := snappedf(GLB_OUTLINE_W / maxf(0.0001, k), 0.0005)
+	if outline_by_grow.has(g): return outline_by_grow[g]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_FRONT
+	m.grow = true
+	m.grow_amount = g
+	m.albedo_color = Color(0.05, 0.04, 0.08)
+	outline_by_grow[g] = m
+	return m
+
+
+func _style_model(n: Node, k: float = 1.0) -> void:
+	# toon + rim on every surface material, outline (constant world width) on opaque ones
 	for ch in n.get_children():
 		if ch is MeshInstance3D:
 			var mi := ch as MeshInstance3D
@@ -1365,10 +1386,9 @@ func _style_model(n: Node) -> void:
 					d.rim_tint = 0.6
 					d.metallic = minf(d.metallic, 0.3)
 					if d.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
-						if outline_pass == null: _outline_of(mat(Color.WHITE))
-						d.next_pass = outline_pass
+						d.next_pass = _outline_for_scale(k)
 					mi.set_surface_override_material(i, d)
-		_style_model(ch)
+		_style_model(ch, k)
 
 
 # ---------------- co-op: partner stage (mirrored from network snapshots) ----------------
