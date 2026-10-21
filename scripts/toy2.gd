@@ -684,7 +684,7 @@ func merge(i: int) -> bool:
 	var ntier := tier + 1
 	if relics.has("bok") and rng.randf() < 0.15: ntier = mini(3, tier + 2)
 	_add_unit(nt, ntier, s)
-	selected = units.size() - 1
+	selected = -1   # clear the selection after merging; the new unit pops in on its own
 	msg = "합성! → %s %s%s" % [TIER_NAMES[ntier], UNITS[nt]["n"], "  (복주머니 대박!)" if ntier == tier + 2 else ""]
 	if ntier == 2: msg += "  MP 스킬 해금!"
 	_float("합성!", slot_pos(s) + Vector3(0, 2, 0), TIER_COLORS[ntier])
@@ -722,7 +722,7 @@ func craft(i: int) -> bool:
 	var s: int = units[i]["slot"]
 	_remove_units(_recipe_pick(i, UNITS[h]["rec"]))
 	_add_unit(h, 3, s)
-	selected = units.size() - 1
+	selected = -1   # clear the selection after crafting; the new hero pops in on its own
 	if not discovered.has(h): discovered.append(h)
 	msg = "레시피 완성! 전설 영웅 '%s' 등장!" % UNITS[h]["n"]
 	_float(UNITS[h]["n"] + "!", slot_pos(s) + Vector3(0, 2.2, 0), Color(1, 0.8, 0.2))
