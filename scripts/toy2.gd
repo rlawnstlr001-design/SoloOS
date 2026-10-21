@@ -1435,6 +1435,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			msg = "빈 칸을 누르면 이동, 다른 유닛을 누르면 자리 맞바꿈. 다시 누르면 선택 해제."
 		elif ui != selected and selected >= 0:
 			move_selected(hit_slot)   # empty cell: move there; another unit: the two swap places
+			selected = -1             # one move per selection, so the next click picks a fresh unit
 		else:
 			selected = -1
 	elif e is InputEventKey and e.pressed and not e.echo:
